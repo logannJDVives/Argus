@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Argus.Entities
+﻿namespace Argus.Entities
 {
-    internal class Severity
+    public enum Severity
     {
+        Low = 0,
+        Medium = 1,
+        High = 2,
+        Critical = 3
     }
 }

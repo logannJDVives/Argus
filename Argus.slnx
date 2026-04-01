@@ -5,10 +5,17 @@
   <Folder Name="/Data/">
     <Project Path="Argus.Data/Argus.Data.csproj" />
   </Folder>
-  <Folder Name="/Dto/" />
+  <Folder Name="/Dto/">
+    <Project Path="Argus.Dto/Argus.Dto.csproj" Id="0f3f2e78-3421-4dda-8f5b-ef3bf881c8ff" />
+  </Folder>
   <Folder Name="/Entities/">
     <Project Path="Argus/Argus.Entities.csproj" />
   </Folder>
-  <Folder Name="/Services/" />
+  <Folder Name="/Services/">
+    <Project Path="Argus.Services/Argus.Services.csproj" Id="3efb93ee-490f-47a8-bc42-ac2ecd39bb7c" />
+  </Folder>
+  <Folder Name="/Services/Interfaces/">
+    <Project Path="Argus.Interfaces/Argus.Interfaces.csproj" Id="acc29269-e294-4946-9c6b-364987c9d897" />
+  </Folder>
   <Folder Name="/Ui/" />
 </Solution>

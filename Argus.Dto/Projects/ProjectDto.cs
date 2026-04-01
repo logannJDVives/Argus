@@ -1,17 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 
-namespace Argus.Entities
+namespace Argus.Dto.Projects
 {
-    public class Project
+    public class ProjectDto
     {
         public Guid Id { get; set; }
         public string Name { get; set; }
         public string Path { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastScanDate { get; set; }
-
-        // Navigation properties
-        public List<ScanRun> ScanRuns { get; set; } = new();
+        public int ScanRunCount { get; set; }
     }
 }
