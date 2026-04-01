@@ -1,3 +1,14 @@
 <Solution>
-  <Project Path="Argus/Argus.csproj" />
+  <Folder Name="/Api/">
+    <Project Path="Argus.Api/Argus.Api.csproj" />
+  </Folder>
+  <Folder Name="/Data/">
+    <Project Path="Argus.Data/Argus.Data.csproj" />
+  </Folder>
+  <Folder Name="/Dto/" />
+  <Folder Name="/Entities/">
+    <Project Path="Argus/Argus.Entities.csproj" />
+  </Folder>
+  <Folder Name="/Services/" />
+  <Folder Name="/Ui/" />
 </Solution>
