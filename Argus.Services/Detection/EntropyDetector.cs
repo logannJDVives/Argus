@@ -10,18 +10,18 @@ using Argus.Interfaces.Models;
 
 namespace Argus.Services.Detection
 {
-    public class EntropyDetector : ISecretDetector
+    public partial class EntropyDetector : ISecretDetector
     {
         private const int    MinTokenLength        = 16;
         private const double HexEntropyThreshold   = 3.0;
         private const double MixedEntropyThreshold = 4.5;
 
         // Extracts string literals ("..." of '...') en waarden na = of :
-        private static readonly Regex TokenExtractor = new(
-            @"[""']([^""']{16,})[""']|[:=]\s*([A-Za-z0-9+/=_\-.]{16,})",
-            RegexOptions.Compiled);
+        [GeneratedRegex(@"[""']([^""']{16,})[""']|[:=]\s*([A-Za-z0-9+/=_\-.]{16,})")]
+        private static partial Regex TokenExtractor();
 
-        private static readonly Regex HexPattern = new(@"^[0-9a-fA-F]+$", RegexOptions.Compiled);
+        [GeneratedRegex(@"^[0-9a-fA-F]+$")]
+        private static partial Regex HexPattern();
 
         public async Task<IReadOnlyList<SecretFinding>> DetectAsync(ScannedFile file)
         {
@@ -32,7 +32,7 @@ namespace Argus.Services.Detection
             {
                 var line = lines[lineNumber - 1];
 
-                foreach (Match match in TokenExtractor.Matches(line))
+                foreach (Match match in TokenExtractor().Matches(line))
                 {
                     // Groep 1 = string literal inhoud, Groep 2 = waarde na = of :
                     var token = match.Groups[1].Success
@@ -43,7 +43,7 @@ namespace Argus.Services.Detection
                         continue;
 
                     var entropy  = CalculateShannonEntropy(token);
-                    var threshold = HexPattern.IsMatch(token)
+                    var threshold = HexPattern().IsMatch(token)
                         ? HexEntropyThreshold
                         : MixedEntropyThreshold;
 

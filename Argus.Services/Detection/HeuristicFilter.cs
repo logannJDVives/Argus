@@ -1,14 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.RegularExpressions;
 using Argus.Entities;
 using Argus.Interfaces.Models;
 
 namespace Argus.Services.Detection
 {
-    public class HeuristicFilter
+    public partial class HeuristicFilter
     {
         // Bekende placeholder-waarden die nooit echte secrets zijn
         private static readonly HashSet<string> Placeholders = new(StringComparer.OrdinalIgnoreCase)
@@ -25,30 +24,25 @@ namespace Argus.Services.Detection
             ".env", ".config"
         };
 
-        private static readonly HashSet<string> SensitiveKeywords = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "secret", "key", "token", "password", "credential", "apikey", "auth", "passwd", "private"
-        };
-
         // Commentaarregels: //, /*, *, #, <!--
-        private static readonly Regex CommentPattern = new(
-            @"^\s*(//|/\*|\*|#|<!--)",
-            RegexOptions.Compiled);
+        [GeneratedRegex(@"^\s*(//|/\*|\*|#|<!--)")]
+        private static partial Regex CommentPattern();
 
         // URL: http://, https://, ftp://
-        private static readonly Regex UrlPattern = new(
-            @"^https?://|^ftp://",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        [GeneratedRegex(@"^https?://|^ftp://", RegexOptions.IgnoreCase)]
+        private static partial Regex UrlPattern();
 
         // Bestandspad: /path/to of C:\path\to
-        private static readonly Regex PathPattern = new(
-            @"^[/\\]|^[a-zA-Z]:[/\\]",
-            RegexOptions.Compiled);
+        [GeneratedRegex(@"^[/\\]|^[a-zA-Z]:[/\\]")]
+        private static partial Regex PathPattern();
 
         // Backreference: varName = "varName" → waarde is identiek aan variabelenaam
-        private static readonly Regex IdenticalNameValuePattern = new(
-            @"\b(\w+)\s*[:=]\s*[""']?\1[""']?",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        [GeneratedRegex(@"\b(\w+)\s*[:=]\s*[""']?\1[""']?", RegexOptions.IgnoreCase)]
+        private static partial Regex IdenticalNameValuePattern();
+
+        // Gevoelig sleutelwoord in de regel → Confidence verhogen
+        [GeneratedRegex(@"secret|key|token|password|credential|apikey|auth|passwd|private", RegexOptions.IgnoreCase)]
+        private static partial Regex SensitiveKeywordPattern();
 
         public IReadOnlyList<SecretFinding> Filter(IReadOnlyList<SecretFinding> findings)
         {
@@ -68,7 +62,7 @@ namespace Argus.Services.Detection
         private static bool ShouldExclude(SecretFinding finding)
         {
             // Commentaarregel
-            if (CommentPattern.IsMatch(finding.LineContent))
+            if (CommentPattern().IsMatch(finding.LineContent))
                 return true;
 
             // Bekende placeholder
@@ -76,7 +70,7 @@ namespace Argus.Services.Detection
                 return true;
 
             // URL of bestandspad
-            if (UrlPattern.IsMatch(finding.MatchedValue) || PathPattern.IsMatch(finding.MatchedValue))
+            if (UrlPattern().IsMatch(finding.MatchedValue) || PathPattern().IsMatch(finding.MatchedValue))
                 return true;
 
             // Test-map of test-bestand
@@ -87,7 +81,7 @@ namespace Argus.Services.Detection
                 return true;
 
             // Waarde is identiek aan de variabelenaam: password = "password"
-            if (IdenticalNameValuePattern.IsMatch(finding.LineContent))
+            if (IdenticalNameValuePattern().IsMatch(finding.LineContent))
                 return true;
 
             return false;
@@ -106,8 +100,7 @@ namespace Argus.Services.Detection
                 confidence = Confidence.High;
 
             // Gevoelig sleutelwoord in de regel → één niveau omhoog
-            if (SensitiveKeywords.Any(kw =>
-                    finding.LineContent.Contains(kw, StringComparison.OrdinalIgnoreCase)))
+            if (SensitiveKeywordPattern().IsMatch(finding.LineContent))
                 confidence = BumpConfidence(confidence);
 
             return confidence == finding.Confidence

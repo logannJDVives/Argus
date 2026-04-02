@@ -8,18 +8,42 @@ using Argus.Interfaces.Models;
 
 namespace Argus.Services.Detection
 {
-    public class RegexDetector : ISecretDetector
+    public partial class RegexDetector : ISecretDetector
     {
+        [GeneratedRegex(@"AKIA[0-9A-Z]{16}")]
+        private static partial Regex AwsAccessKeyPattern();
+
+        [GeneratedRegex(@"aws_secret_access_key\s*=\s*\S+", RegexOptions.IgnoreCase)]
+        private static partial Regex AwsSecretKeyPattern();
+
+        [GeneratedRegex(@"(api[_-]?key|apikey)\s*[:=]\s*[""']?\S{16,}", RegexOptions.IgnoreCase)]
+        private static partial Regex GenericApiKeyPattern();
+
+        [GeneratedRegex(@"(password|pwd)\s*=\s*[^;]{4,}", RegexOptions.IgnoreCase)]
+        private static partial Regex ConnectionStringPattern();
+
+        [GeneratedRegex(@"-----BEGIN (RSA|EC|OPENSSH) PRIVATE KEY-----")]
+        private static partial Regex PrivateKeyPattern();
+
+        [GeneratedRegex(@"(secret|token|password)\s*[:=]\s*[""']?\S{8,}", RegexOptions.IgnoreCase)]
+        private static partial Regex GenericSecretPattern();
+
+        [GeneratedRegex(@"gh[ps]_[A-Za-z0-9_]{36,}")]
+        private static partial Regex GithubTokenPattern();
+
+        [GeneratedRegex(@"(AccountKey|SharedAccessKey)\s*=\s*[A-Za-z0-9+/=]{20,}", RegexOptions.IgnoreCase)]
+        private static partial Regex AzureKeyPattern();
+
         private static readonly IReadOnlyList<DetectionRule> Rules =
         [
-            new("AWS_ACCESS_KEY",    @"AKIA[0-9A-Z]{16}",                                               Severity.Critical),
-            new("AWS_SECRET_KEY",    @"(?i)aws_secret_access_key\s*=\s*\S+",                            Severity.Critical),
-            new("GENERIC_API_KEY",   @"(?i)(api[_-]?key|apikey)\s*[:=]\s*[""']?\S{16,}",               Severity.High),
-            new("CONNECTION_STRING", @"(?i)(password|pwd)\s*=\s*[^;]{4,}",                              Severity.High),
-            new("PRIVATE_KEY",       @"-----BEGIN (RSA|EC|OPENSSH) PRIVATE KEY-----",                   Severity.Critical),
-            new("GENERIC_SECRET",    @"(?i)(secret|token|password)\s*[:=]\s*[""']?\S{8,}",              Severity.Medium),
-            new("GITHUB_TOKEN",      @"gh[ps]_[A-Za-z0-9_]{36,}",                                       Severity.Critical),
-            new("AZURE_KEY",         @"(?i)(AccountKey|SharedAccessKey)\s*=\s*[A-Za-z0-9+/=]{20,}",    Severity.Critical),
+            new("AWS_ACCESS_KEY",    AwsAccessKeyPattern(),     Severity.Critical),
+            new("AWS_SECRET_KEY",    AwsSecretKeyPattern(),     Severity.Critical),
+            new("GENERIC_API_KEY",   GenericApiKeyPattern(),    Severity.High),
+            new("CONNECTION_STRING", ConnectionStringPattern(), Severity.High),
+            new("PRIVATE_KEY",       PrivateKeyPattern(),       Severity.Critical),
+            new("GENERIC_SECRET",    GenericSecretPattern(),    Severity.Medium),
+            new("GITHUB_TOKEN",      GithubTokenPattern(),      Severity.Critical),
+            new("AZURE_KEY",         AzureKeyPattern(),         Severity.Critical),
         ];
 
         public async Task<IReadOnlyList<SecretFinding>> DetectAsync(ScannedFile file)
@@ -54,10 +78,6 @@ namespace Argus.Services.Detection
             return findings;
         }
 
-        private sealed record DetectionRule(string RuleId, Regex Pattern, Severity Severity)
-        {
-            public DetectionRule(string ruleId, string pattern, Severity severity)
-                : this(ruleId, new Regex(pattern, RegexOptions.Compiled), severity) { }
-        }
+        private sealed record DetectionRule(string RuleId, Regex Pattern, Severity Severity);
     }
 }
