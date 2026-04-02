@@ -17,6 +17,15 @@ namespace Argus.Data
         public DbSet<SoftwareComponent> SoftwareComponents { get; set; }
         public DbSet<Vulnerability> Vulnerabilities { get; set; }
 
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            // Dit vertelt EF Core expliciet waar de database staat tijdens migrations
+            if (!optionsBuilder.IsConfigured)
+            {
+                optionsBuilder.UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=ArgusDb;Trusted_Connection=True;MultipleActiveResultSets=true;");
+            }
+        }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

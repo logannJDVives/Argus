@@ -84,9 +84,12 @@ namespace Argus.API.Controllers
         /// Upload a ZIP file and create a new project
         /// </summary>
         [HttpPost("upload")]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(100_000_000)] // 100 MB — Kestrel default is ~28.6 MB
+        [RequestFormLimits(MultipartBodyLengthLimit = 100_000_000)]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<UploadProjectResponseDto>> UploadProject([FromForm] IFormFile file)
+        public async Task<ActionResult<UploadProjectResponseDto>> UploadProject(IFormFile file, [FromForm] string projectName = null)
         {
             if (file == null || file.Length == 0)
                 return BadRequest(new { message = "No file provided." });
