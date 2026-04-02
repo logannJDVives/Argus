@@ -1,4 +1,4 @@
-# [Project Name] - Automated Secret Scanning & SBOM Generation
+# Argus - Automated Secret Scanning & SBOM Generation
 
 ## 🛡️ About the Project
 This project was developed as part of my Graduation Thesis (Graduaatsproef). It addresses two critical challenges in modern DevSecOps: **Credential Leaks** and **Software Supply Chain Security**.
