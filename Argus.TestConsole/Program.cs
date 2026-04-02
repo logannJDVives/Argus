@@ -5,6 +5,7 @@ using Argus.Sdk;
 
 namespace Argus.TestConsole
 {
+    //Ai heeft deze testconsole geschreven (tijdbesparing)
     class Program
     {
         static async Task Main(string[] args)
