@@ -13,10 +13,12 @@ namespace Argus.Services
     public class ScanService : IScanService
     {
         private readonly ArgusDbContext _context;
+        private readonly IProjectFileScannerService _scanner;
 
-        public ScanService(ArgusDbContext context)
+        public ScanService(ArgusDbContext context, IProjectFileScannerService scanner)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
+            _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
         }
 
         public async Task<ScanRunDto> StartScanAsync(Guid projectId)
@@ -31,8 +33,7 @@ namespace Argus.Services
                 Id = Guid.NewGuid(),
                 ProjectId = projectId,
                 CreatedAt = DateTime.UtcNow,
-                CompletedAt = null,
-                Status = ScanStatus.Pending,
+                Status = ScanStatus.InProgress,
                 SecretCount = 0,
                 ComponentCount = 0,
                 ErrorMessage = null,
@@ -43,6 +44,23 @@ namespace Argus.Services
             _context.ScanRuns.Add(scanRun);
             await _context.SaveChangesAsync();
 
+            try
+            {
+                var files = await _scanner.ScanProjectAsync(project.Path);
+
+                scanRun.FilesScanned = files.Count;
+                scanRun.Status = ScanStatus.Completed;
+                scanRun.CompletedAt = DateTime.UtcNow;
+                scanRun.Duration = scanRun.CompletedAt - scanRun.CreatedAt;
+            }
+            catch (Exception ex)
+            {
+                scanRun.Status = ScanStatus.Failed;
+                scanRun.ErrorMessage = ex.Message;
+                scanRun.CompletedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
             return MapToDto(scanRun);
         }
 

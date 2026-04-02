@@ -27,6 +27,7 @@ builder.Services.AddDbContext<ArgusDbContext>(options =>
 // CUSTOM SERVICES
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IProjectUploadService, ProjectUploadService>();
+builder.Services.AddScoped<IProjectFileScannerService, ProjectFileScannerService>();
 builder.Services.AddScoped<IScanService, ScanService>();
 builder.Services.AddScoped<ISecretService, SecretService>();
 
