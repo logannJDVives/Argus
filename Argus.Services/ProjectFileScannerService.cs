@@ -15,17 +15,19 @@ namespace Argus.Services
 
         private static readonly Dictionary<string, FileCategory> ExtensionMap = new(System.StringComparer.OrdinalIgnoreCase)
         {
-            [".cs"]      = FileCategory.SourceCode,
-            [".csproj"]  = FileCategory.ProjectFile,
-            [".sln"]     = FileCategory.ProjectFile,
-            [".props"]   = FileCategory.ProjectFile,
-            [".targets"] = FileCategory.ProjectFile,
-            [".json"]    = FileCategory.Config,
-            [".xml"]     = FileCategory.Config,
-            [".config"]  = FileCategory.Config,
-            [".yaml"]    = FileCategory.CI,
-            [".yml"]     = FileCategory.CI,
-            [".env"]     = FileCategory.Environment,
+            [".cs"]         = FileCategory.SourceCode,
+            [".js"]         = FileCategory.SourceCode,
+            [".ts"]         = FileCategory.SourceCode,
+            [".csproj"]     = FileCategory.ProjectFile,
+            [".sln"]        = FileCategory.ProjectFile,
+            [".props"]      = FileCategory.ProjectFile,
+            [".targets"]    = FileCategory.ProjectFile,
+            [".json"]       = FileCategory.Config,
+            [".xml"]        = FileCategory.Config,
+            [".config"]     = FileCategory.Config,
+            [".yaml"]       = FileCategory.CI,
+            [".yml"]        = FileCategory.CI,
+            [".env"]        = FileCategory.Environment,
             [".dockerfile"] = FileCategory.Docker,
         };
 
