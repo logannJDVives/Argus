@@ -54,6 +54,7 @@ namespace Argus.Services.Detection
                     {
                         FilePath     = file.RelativePath,
                         LineNumber   = lineNumber,
+                        LineContent  = line,
                         MatchedValue = token,
                         RuleId       = "HIGH_ENTROPY",
                         DetectorType = DetectorType.Entropy,

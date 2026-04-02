@@ -41,6 +41,7 @@ namespace Argus.Services.Detection
                     {
                         FilePath     = file.RelativePath,
                         LineNumber   = lineNumber,
+                        LineContent  = line,
                         MatchedValue = match.Value,
                         RuleId       = rule.RuleId,
                         DetectorType = DetectorType.Regex,
