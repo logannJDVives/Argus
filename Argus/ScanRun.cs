@@ -15,7 +15,7 @@ namespace Argus.Entities
         // Scan results
         public int SecretCount { get; set; }
         public int ComponentCount { get; set; }
-        public string ErrorMessage { get; set; }
+        public string? ErrorMessage { get; set; }
 
         // Performance metrics
         public TimeSpan? Duration { get; set; }

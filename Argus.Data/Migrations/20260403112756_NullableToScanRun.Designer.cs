@@ -4,6 +4,7 @@ using Argus.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Argus.Data.Migrations
 {
     [DbContext(typeof(ArgusDbContext))]
-    partial class ArgusDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260403112756_NullableToScanRun")]
+    partial class NullableToScanRun
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -70,6 +73,9 @@ namespace Argus.Data.Migrations
 
                     b.HasIndex("Confidence");
 
+                    b.HasIndex("Hash")
+                        .IsUnique();
+
                     b.HasIndex("RuleId");
 
                     b.HasIndex("ScanRunId");
@@ -78,18 +84,15 @@ namespace Argus.Data.Migrations
 
                     b.HasIndex("Type");
 
-                    b.HasIndex("IsReviewed", "IsFalsePositive");
-
-                    b.HasIndex("ScanRunId", "Hash")
+                    b.HasIndex("FilePath", "LineNumber")
                         .IsUnique();
+
+                    b.HasIndex("IsReviewed", "IsFalsePositive");
 
                     b.HasIndex("ScanRunId", "IsFalsePositive");
 
                     b.HasIndex("ScanRunId", "Severity")
                         .IsDescending(false, true);
-
-                    b.HasIndex("ScanRunId", "FilePath", "LineNumber")
-                        .IsUnique();
 
                     b.ToTable("DetectedSecrets");
                 });

@@ -91,7 +91,7 @@ namespace Argus.Data
                 .HasIndex(ds => ds.ScanRunId);
 
             modelBuilder.Entity<DetectedSecret>()
-                .HasIndex(ds => new { ds.FilePath, ds.LineNumber })
+                .HasIndex(ds => new { ds.ScanRunId, ds.FilePath, ds.LineNumber })
                 .IsUnique();
 
             modelBuilder.Entity<DetectedSecret>()
@@ -110,7 +110,7 @@ namespace Argus.Data
                 .HasIndex(ds => ds.Type);
 
             modelBuilder.Entity<DetectedSecret>()
-                .HasIndex(ds => ds.Hash)
+                .HasIndex(ds => new { ds.ScanRunId, ds.Hash })
                 .IsUnique();
 
             modelBuilder.Entity<DetectedSecret>()

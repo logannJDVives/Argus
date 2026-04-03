@@ -1,0 +1,124 @@
+@page "/projects/{ProjectId:guid}/scans"
+@inject ArgusApiClient Api
+@inject NavigationManager Nav
+
+<a href="projects" class="btn btn-sm btn-outline-secondary mb-4">← Back to projects</a>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Scan History</h2>
+    <button class="btn btn-success" @onclick="StartScanAsync" disabled="@_scanning">
+        @if (_scanning)
+        {
+            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+            <span>Scanning…</span>
+        }
+        else
+        {
+            <span>▶ Start New Scan</span>
+        }
+    </button>
+</div>
+
+@if (_loading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+    </div>
+}
+else if (_errorMessage is not null)
+{
+    <div class="alert alert-danger">@_errorMessage</div>
+}
+else if (_scans.Count == 0)
+{
+    <div class="alert alert-info">No scans yet. Click <strong>▶ Start New Scan</strong> to begin.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Started</th>
+                    <th>Status</th>
+                    <th class="text-center">Files</th>
+                    <th class="text-center">Secrets</th>
+                    <th>Duration</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var scan in _scans)
+                {
+                    <tr>
+                        <td class="small text-muted">@scan.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                        <td><span class="badge @StatusBadgeClass(scan.Status)">@scan.Status</span></td>
+                        <td class="text-center">@(scan.FilesScanned ?? 0)</td>
+                        <td class="text-center fw-semibold @(scan.SecretCount > 0 ? "text-danger" : "text-success")">
+                            @scan.SecretCount
+                        </td>
+                        <td class="small text-muted">
+                            @(scan.Duration.HasValue ? $"{scan.Duration.Value.TotalSeconds:F1}s" : "—")
+                        </td>
+                        <td class="text-end">
+                            <a href="projects/@ProjectId/scans/@scan.Id" class="btn btn-sm btn-outline-primary">View</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid ProjectId { get; set; }
+
+    private List<ScanRunDto> _scans = [];
+    private bool _loading = true;
+    private bool _scanning;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _scans = await Api.GetScansAsync(ProjectId);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load scans: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task StartScanAsync()
+    {
+        _scanning = true;
+        _errorMessage = null;
+
+        try
+        {
+            var scan = await Api.StartScanAsync(ProjectId);
+            Nav.NavigateTo($"projects/{ProjectId}/scans/{scan.Id}");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Scan failed: {ex.Message}";
+        }
+        finally
+        {
+            _scanning = false;
+        }
+    }
+
+    private static string StatusBadgeClass(string status) => status switch
+    {
+        "Completed"  => "bg-success",
+        "InProgress" => "bg-warning text-dark",
+        "Failed"     => "bg-danger",
+        _            => "bg-secondary"
+    };
+}

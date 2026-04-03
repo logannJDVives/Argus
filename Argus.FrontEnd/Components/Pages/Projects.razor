@@ -1,0 +1,125 @@
+@page "/projects"
+@inject ArgusApiClient Api
+@inject NavigationManager Nav
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Projects</h2>
+    <a href="upload" class="btn btn-primary">+ Upload Project</a>
+</div>
+
+@if (_loading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-muted">Loading projects…</p>
+    </div>
+}
+else if (_errorMessage is not null)
+{
+    <div class="alert alert-danger">@_errorMessage</div>
+}
+else if (_projects.Count == 0)
+{
+    <div class="alert alert-info">
+        No projects yet. <a href="upload">Upload one to get started.</a>
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Name</th>
+                    <th>Created</th>
+                    <th>Last scan</th>
+                    <th class="text-center">Scans</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var project in _projects)
+                {
+                    <tr>
+                        <td class="fw-semibold">@project.Name</td>
+                        <td class="text-muted small">@project.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                        <td class="text-muted small">
+                            @(project.LastScanDate.HasValue
+                                ? project.LastScanDate.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                : "—")
+                        </td>
+                        <td class="text-center">@project.ScanRunCount</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-success me-2"
+                                    @onclick="() => StartScanAsync(project)"
+                                    disabled="@(_scanningProjectId == project.Id)">
+                                @if (_scanningProjectId == project.Id)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    <span>Scanning…</span>
+                                }
+                                else
+                                {
+                                    <span>▶ Scan</span>
+                                }
+                            </button>
+                            @if (project.ScanRunCount > 0)
+                            {
+                                <a href="projects/@project.Id/scans" class="btn btn-sm btn-outline-secondary">History</a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (_scanError is not null)
+{
+    <div class="alert alert-danger mt-3">@_scanError</div>
+}
+
+@code {
+    private List<ProjectDto> _projects = [];
+    private bool _loading = true;
+    private string? _errorMessage;
+    private string? _scanError;
+    private Guid? _scanningProjectId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _projects = await Api.GetProjectsAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load projects: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task StartScanAsync(ProjectDto project)
+    {
+        _scanningProjectId = project.Id;
+        _scanError = null;
+
+        try
+        {
+            var scan = await Api.StartScanAsync(project.Id);
+            Nav.NavigateTo($"projects/{project.Id}/scans/{scan.Id}");
+        }
+        catch (Exception ex)
+        {
+            _scanError = $"Scan failed for '{project.Name}': {ex.Message}";
+        }
+        finally
+        {
+            _scanningProjectId = null;
+        }
+    }
+}
