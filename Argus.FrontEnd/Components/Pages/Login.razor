@@ -1,5 +1,6 @@
 @page "/login"
 @inject AuthStateService Auth
+@inject ArgusApiClient Api
 @inject NavigationManager Nav
 
 <div class="container" style="max-width: 420px; margin-top: 80px;">
@@ -59,12 +60,16 @@
         _loading      = true;
         _errorMessage = null;
 
-        var success = await Auth.LoginAsync(_model.Email, _model.Password);
-
-        if (success)
+        try
+        {
+            var response = await Api.LoginAsync(new LoginDto { Email = _model.Email, Password = _model.Password });
+            Auth.SetSession(response);
             Nav.NavigateTo("/projects");
-        else
+        }
+        catch
+        {
             _errorMessage = "Invalid email or password.";
+        }
 
         _loading = false;
     }

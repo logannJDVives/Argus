@@ -1,5 +1,4 @@
 using Argus.Dto.Auth;
-using Argus.Sdk;
 
 namespace Argus.FrontEnd.Services
 {
@@ -9,8 +8,6 @@ namespace Argus.FrontEnd.Services
     /// </summary>
     public class AuthStateService
     {
-        private readonly ArgusApiClient _api;
-
         private const string TokenKey = "auth_token";
         private const string EmailKey = "auth_email";
 
@@ -20,57 +17,26 @@ namespace Argus.FrontEnd.Services
 
         public event Action? AuthStateChanged;
 
-        public AuthStateService(ArgusApiClient api)
+        public AuthStateService()
         {
-            _api = api;
             TryLoadPersistedSession();
         }
 
-        public async Task<bool> LoginAsync(string email, string password)
+        public void SetSession(AuthResponseDto response)
         {
-            try
-            {
-                var response = await _api.LoginAsync(new LoginDto { Email = email, Password = password });
-                ApplyToken(response);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        public async Task<bool> RegisterAsync(string email, string password)
-        {
-            try
-            {
-                var response = await _api.RegisterAsync(new RegisterDto { Email = email, Password = password });
-                ApplyToken(response);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            Token = response.Token;
+            Email = response.Email;
+            Preferences.Default.Set(TokenKey, Token);
+            Preferences.Default.Set(EmailKey, Email);
+            AuthStateChanged?.Invoke();
         }
 
         public void Logout()
         {
             Token = null;
             Email = null;
-            _api.ClearAuthToken();
             Preferences.Default.Remove(TokenKey);
             Preferences.Default.Remove(EmailKey);
-            AuthStateChanged?.Invoke();
-        }
-
-        private void ApplyToken(AuthResponseDto response)
-        {
-            Token = response.Token;
-            Email = response.Email;
-            _api.SetAuthToken(Token);
-            Preferences.Default.Set(TokenKey, Token);
-            Preferences.Default.Set(EmailKey, Email);
             AuthStateChanged?.Invoke();
         }
 
@@ -83,8 +49,8 @@ namespace Argus.FrontEnd.Services
             {
                 Token = savedToken;
                 Email = savedEmail;
-                _api.SetAuthToken(savedToken);
             }
         }
     }
 }
+

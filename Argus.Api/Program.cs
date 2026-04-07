@@ -31,13 +31,14 @@ builder.Services.AddDbContext<ArgusDbContext>(options =>
 );
 
 // IDENTITY
-builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
+builder.Services.AddIdentityCore<AppUser>(options =>
 {
     options.Password.RequireDigit           = true;
     options.Password.RequiredLength         = 8;
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequireUppercase       = false;
 })
+.AddRoles<IdentityRole>()
 .AddEntityFrameworkStores<ArgusDbContext>()
 .AddDefaultTokenProviders();
 

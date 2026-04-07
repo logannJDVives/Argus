@@ -38,17 +38,6 @@ namespace Argus.Sdk
             return (await response.Content.ReadFromJsonAsync<AuthResponseDto>(ct))!;
         }
 
-        public void SetAuthToken(string token)
-        {
-            _httpClient.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", token);
-        }
-
-        public void ClearAuthToken()
-        {
-            _httpClient.DefaultRequestHeaders.Authorization = null;
-        }
-
         // ── Health ──────────────────────────────────────────────────────────────
 
         public async Task<bool> CheckHealthAsync(CancellationToken ct = default)
