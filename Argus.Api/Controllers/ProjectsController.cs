@@ -1,13 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Argus.Dto.Projects;
 using Argus.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Argus.API.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class ProjectsController : ControllerBase
@@ -18,8 +21,10 @@ namespace Argus.API.Controllers
         public ProjectsController(IProjectService projectService, IProjectUploadService uploadService)
         {
             _projectService = projectService ?? throw new ArgumentNullException(nameof(projectService));
-            _uploadService = uploadService ?? throw new ArgumentNullException(nameof(uploadService));
+            _uploadService  = uploadService  ?? throw new ArgumentNullException(nameof(uploadService));
         }
+
+        private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
         /// <summary>
         /// Create a new project
@@ -32,18 +37,18 @@ namespace Argus.API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var project = await _projectService.CreateProjectAsync(dto);
+            var project = await _projectService.CreateProjectAsync(dto, UserId);
             return CreatedAtAction(nameof(GetProject), new { id = project.Id }, project);
         }
 
         /// <summary>
-        /// Get all projects
+        /// Get all projects for the current user
         /// </summary>
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<ActionResult<List<ProjectDto>>> GetAllProjects()
         {
-            var projects = await _projectService.GetAllProjectsAsync();
+            var projects = await _projectService.GetAllProjectsAsync(UserId);
             return Ok(projects);
         }
 
@@ -56,7 +61,7 @@ namespace Argus.API.Controllers
         public async Task<ActionResult<ProjectDto>> GetProject(Guid id)
         {
             var project = await _projectService.GetProjectByIdAsync(id);
-            
+
             if (project == null)
                 return NotFound(new { message = $"Project with ID {id} not found." });
 
@@ -72,11 +77,11 @@ namespace Argus.API.Controllers
         public async Task<IActionResult> DeleteProject(Guid id)
         {
             var project = await _projectService.GetProjectByIdAsync(id);
-            
+
             if (project == null)
                 return NotFound(new { message = $"Project with ID {id} not found." });
 
-            await _projectService.DeleteProjectAsync(id);
+            await _projectService.DeleteProjectAsync(id, UserId);
             return NoContent();
         }
 
@@ -85,7 +90,7 @@ namespace Argus.API.Controllers
         /// </summary>
         [HttpPost("upload")]
         [Consumes("multipart/form-data")]
-        [RequestSizeLimit(100_000_000)] // 100 MB — Kestrel default is ~28.6 MB
+        [RequestSizeLimit(100_000_000)] // 100 MB — Kestrel default is 28.6 MB
         [RequestFormLimits(MultipartBodyLengthLimit = 100_000_000)]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -97,7 +102,7 @@ namespace Argus.API.Controllers
             if (!file.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                 return BadRequest(new { message = "File must be a ZIP archive." });
 
-            var result = await _uploadService.UploadAndCreateProjectAsync(file);
+            var result = await _uploadService.UploadAndCreateProjectAsync(file, UserId);
             return CreatedAtAction(nameof(GetProject), new { id = result.ProjectId }, result);
         }
     }

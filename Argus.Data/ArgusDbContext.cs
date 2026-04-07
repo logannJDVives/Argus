@@ -1,9 +1,10 @@
 ﻿using Argus.Entities;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Argus.Data
 {
-    public class ArgusDbContext : DbContext
+    public class ArgusDbContext : IdentityDbContext<AppUser>
     {
         public ArgusDbContext(DbContextOptions<ArgusDbContext> options) 
             : base(options)
@@ -29,6 +30,17 @@ namespace Argus.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // User - Project relatie (1:N)
+            modelBuilder.Entity<Project>()
+                .HasOne(p => p.User)
+                .WithMany(u => u.Projects)
+                .HasForeignKey(p => p.UserId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Project>()
+                .HasIndex(p => p.UserId);
 
             // Project - ScanRun relatie (1:N)
             modelBuilder.Entity<ScanRun>()

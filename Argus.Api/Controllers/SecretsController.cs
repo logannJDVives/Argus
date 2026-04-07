@@ -2,11 +2,13 @@ using System;
 using System.Threading.Tasks;
 using Argus.Dto.Secrets;
 using Argus.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Argus.API.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api")]
     public class SecretsController : ControllerBase

@@ -20,7 +20,7 @@ namespace Argus.Services
             _env = env ?? throw new ArgumentNullException(nameof(env));
         }
 
-        public async Task<UploadProjectResponseDto> UploadAndCreateProjectAsync(IFormFile zipFile)
+        public async Task<UploadProjectResponseDto> UploadAndCreateProjectAsync(IFormFile zipFile, string userId)
         {
             if (zipFile == null)
                 throw new ArgumentNullException(nameof(zipFile));
@@ -49,7 +49,7 @@ namespace Argus.Services
 
             // Path is now set — no more NULL on insert
             var createProjectDto = new CreateProjectDto { Name = projectName, Path = extractPath };
-            var projectDto = await _projectService.CreateProjectAsync(createProjectDto);
+            var projectDto = await _projectService.CreateProjectAsync(createProjectDto, userId);
 
             // Return response
             return new UploadProjectResponseDto

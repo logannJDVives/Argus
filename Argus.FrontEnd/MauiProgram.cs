@@ -1,4 +1,5 @@
-﻿using Argus.Sdk;
+﻿using Argus.FrontEnd.Services;
+using Argus.Sdk;
 using Microsoft.Extensions.Logging;
 
 namespace Argus.FrontEnd
@@ -19,12 +20,16 @@ namespace Argus.FrontEnd
 
             // Register Argus SDK with HttpClientFactory
             builder.Services.AddSingleton(new ArgusApiClientOptions(ApiConfig.BaseUrl));
+            builder.Services.AddTransient<AuthorizationMessageHandler>();
             builder.Services.AddHttpClient<ArgusApiClient>((provider, client) =>
             {
                 var options = provider.GetRequiredService<ArgusApiClientOptions>();
                 client.BaseAddress = new Uri(options.BaseUrl);
                 client.Timeout = TimeSpan.FromMinutes(5); // allow large uploads
-            });
+            })
+            .AddHttpMessageHandler<AuthorizationMessageHandler>();
+
+            builder.Services.AddSingleton<AuthStateService>();
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();

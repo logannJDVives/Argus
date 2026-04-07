@@ -5,6 +5,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Argus.Dto.Auth;
 using Argus.Dto.Projects;
 using Argus.Dto.Scans;
 using Argus.Dto.Secrets;
@@ -19,6 +20,22 @@ namespace Argus.Sdk
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _ = options ?? throw new ArgumentNullException(nameof(options));
+        }
+
+        // ── Auth ────────────────────────────────────────────────────────────────
+
+        public async Task<AuthResponseDto> RegisterAsync(RegisterDto dto, CancellationToken ct = default)
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/auth/register", dto, ct);
+            response.EnsureSuccessStatusCode();
+            return (await response.Content.ReadFromJsonAsync<AuthResponseDto>(ct))!;
+        }
+
+        public async Task<AuthResponseDto> LoginAsync(LoginDto dto, CancellationToken ct = default)
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/auth/login", dto, ct);
+            response.EnsureSuccessStatusCode();
+            return (await response.Content.ReadFromJsonAsync<AuthResponseDto>(ct))!;
         }
 
         // ── Health ──────────────────────────────────────────────────────────────

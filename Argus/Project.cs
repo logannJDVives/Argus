@@ -11,6 +11,10 @@ namespace Argus.Entities
         public DateTime CreatedAt { get; set; }
         public DateTime? LastScanDate { get; set; }
 
+        // Owner
+        public string? UserId { get; set; }
+        public AppUser? User { get; set; }
+
         // Navigation properties
         public List<ScanRun> ScanRuns { get; set; } = new();
     }

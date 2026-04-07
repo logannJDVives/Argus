@@ -7,9 +7,9 @@ namespace Argus.Interfaces
 {
     public interface IProjectService
     {
-        Task<ProjectDto> CreateProjectAsync(CreateProjectDto dto);
-        Task<ProjectDto> GetProjectByIdAsync(Guid id);
-        Task<List<ProjectDto>> GetAllProjectsAsync();
-        Task DeleteProjectAsync(Guid id);
+        Task<ProjectDto> CreateProjectAsync(CreateProjectDto dto, string userId);
+        Task<ProjectDto?> GetProjectByIdAsync(Guid id);
+        Task<List<ProjectDto>> GetAllProjectsAsync(string userId);
+        Task DeleteProjectAsync(Guid id, string userId);
     }
 }

@@ -1,0 +1,76 @@
+@page "/login"
+@inject AuthStateService Auth
+@inject ArgusApiClient Api
+@inject NavigationManager Nav
+
+<div class="container" style="max-width: 420px; margin-top: 80px;">
+    <h3 class="mb-4">Sign in to Argus</h3>
+
+    @if (_errorMessage is not null)
+    {
+        <div class="alert alert-danger">@_errorMessage</div>
+    }
+
+    <EditForm Model="_model" OnValidSubmit="HandleLogin">
+        <DataAnnotationsValidator />
+
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <InputText class="form-control" @bind-Value="_model.Email" type="email" placeholder="you@example.com" />
+            <ValidationMessage For="() => _model.Email" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Password</label>
+            <InputText class="form-control" @bind-Value="_model.Password" type="password" />
+            <ValidationMessage For="() => _model.Password" />
+        </div>
+
+        <button class="btn btn-primary w-100" type="submit" disabled="@_loading">
+            @if (_loading)
+            {
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                <span>Signing in…</span>
+            }
+            else
+            {
+                <span>Sign in</span>
+            }
+        </button>
+    </EditForm>
+
+    <p class="text-center mt-3 text-muted small">
+        No account? <a href="register">Register here</a>
+    </p>
+</div>
+
+@code {
+    private readonly LoginDto _model = new();
+    private string? _errorMessage;
+    private bool _loading;
+
+    protected override void OnInitialized()
+    {
+        if (Auth.IsAuthenticated)
+            Nav.NavigateTo("/projects");
+    }
+
+    private async Task HandleLogin()
+    {
+        _loading      = true;
+        _errorMessage = null;
+
+        try
+        {
+            var response = await Api.LoginAsync(new LoginDto { Email = _model.Email, Password = _model.Password });
+            Auth.SetSession(response);
+            Nav.NavigateTo("/projects");
+        }
+        catch
+        {
+            _errorMessage = "Invalid email or password.";
+        }
+
+        _loading = false;
+    }
+}

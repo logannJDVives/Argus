@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Argus.Dto.Scans;
 using Argus.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Argus.API.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/projects/{projectId}/scans")]
     public class ScansController : ControllerBase
