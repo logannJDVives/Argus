@@ -6,6 +6,6 @@ namespace Argus.Interfaces
 {
     public interface IProjectUploadService
     {
-        Task<UploadProjectResponseDto> UploadAndCreateProjectAsync(IFormFile zipFile);
+        Task<UploadProjectResponseDto> UploadAndCreateProjectAsync(IFormFile zipFile, string userId);
     }
 }

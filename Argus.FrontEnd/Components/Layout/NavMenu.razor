@@ -1,6 +1,9 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@inject AuthStateService Auth
+@inject NavigationManager Nav
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">Argus.FrontEnd</a>
+        <a class="navbar-brand" href="">Argus</a>
     </div>
 </div>
 
@@ -13,15 +16,45 @@
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
             </NavLink>
         </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="projects">
-                <span class="bi bi-folder-fill-nav-menu" aria-hidden="true"></span> Projects
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="upload">
-                <span class="bi bi-cloud-arrow-up-fill-nav-menu" aria-hidden="true"></span> Upload Project
-            </NavLink>
-        </div>
+
+        @if (Auth.IsAuthenticated)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="projects">
+                    <span class="bi bi-folder-fill-nav-menu" aria-hidden="true"></span> Projects
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="upload">
+                    <span class="bi bi-cloud-arrow-up-fill-nav-menu" aria-hidden="true"></span> Upload Project
+                </NavLink>
+            </div>
+            <div class="nav-item px-3 mt-auto">
+                <button class="nav-link btn btn-link text-start w-100" @onclick="Logout">
+                    <span class="bi bi-box-arrow-right-nav-menu" aria-hidden="true"></span> Sign out (@Auth.Email)
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="login">
+                    <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> Sign in
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="register">
+                    <span class="bi bi-person-plus-fill-nav-menu" aria-hidden="true"></span> Register
+                </NavLink>
+            </div>
+        }
     </nav>
 </div>
+
+@code {
+    private void Logout()
+    {
+        Auth.Logout();
+        Nav.NavigateTo("/login");
+    }
+}

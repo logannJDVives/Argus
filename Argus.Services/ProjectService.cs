@@ -19,7 +19,7 @@ namespace Argus.Services
             _context = context ?? throw new ArgumentNullException(nameof(context));
         }
 
-        public async Task<ProjectDto> CreateProjectAsync(CreateProjectDto dto)
+        public async Task<ProjectDto> CreateProjectAsync(CreateProjectDto dto, string userId)
         {
             if (dto == null)
                 throw new ArgumentNullException(nameof(dto));
@@ -30,7 +30,8 @@ namespace Argus.Services
                 Name = dto.Name,
                 Path = dto.Path,
                 CreatedAt = DateTime.UtcNow,
-                LastScanDate = null
+                LastScanDate = null,
+                UserId = userId
             };
 
             _context.Projects.Add(project);
@@ -49,20 +50,21 @@ namespace Argus.Services
             return project == null ? null : MapToDto(project);
         }
 
-        public async Task<List<ProjectDto>> GetAllProjectsAsync()
+        public async Task<List<ProjectDto>> GetAllProjectsAsync(string userId)
         {
             var projects = await _context.Projects
                 .AsNoTracking()
                 .Include(p => p.ScanRuns)
+                .Where(p => p.UserId == userId)
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
 
             return projects.Select(MapToDto).ToList();
         }
 
-        public async Task DeleteProjectAsync(Guid id)
+        public async Task DeleteProjectAsync(Guid id, string userId)
         {
-            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
 
             if (project == null)
                 throw new KeyNotFoundException($"Project with ID {id} not found.");

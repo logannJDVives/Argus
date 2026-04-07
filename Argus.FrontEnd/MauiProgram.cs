@@ -1,4 +1,5 @@
-﻿using Argus.Sdk;
+﻿using Argus.FrontEnd.Services;
+using Argus.Sdk;
 using Microsoft.Extensions.Logging;
 
 namespace Argus.FrontEnd
@@ -25,6 +26,8 @@ namespace Argus.FrontEnd
                 client.BaseAddress = new Uri(options.BaseUrl);
                 client.Timeout = TimeSpan.FromMinutes(5); // allow large uploads
             });
+
+            builder.Services.AddSingleton<AuthStateService>();
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
