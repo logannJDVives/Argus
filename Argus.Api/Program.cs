@@ -1,6 +1,7 @@
 using Argus.Data;
 using Argus.Interfaces;
 using Argus.Services;
+using Argus.Services.Detection;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,6 +26,8 @@ builder.Services.AddDbContext<ArgusDbContext>(options =>
 );
 
 // CUSTOM SERVICES
+builder.Services.AddSingleton<HeuristicFilter>();
+builder.Services.AddScoped<ISecretDetector, RegexDetector>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IProjectUploadService, ProjectUploadService>();
 builder.Services.AddScoped<IProjectFileScannerService, ProjectFileScannerService>();

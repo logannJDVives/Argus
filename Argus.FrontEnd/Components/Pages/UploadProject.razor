@@ -2,6 +2,7 @@
 @using Argus.Sdk
 @using System.IO
 @inject ArgusApiClient ApiClient
+@inject NavigationManager Nav
 
 <div class="upload-container" style="max-width: 500px; margin: 20px auto;">
     <h2>Upload Project</h2>
@@ -150,7 +151,9 @@
             errorMessage = "";
             uploadedProjectId = Guid.Empty;
 
-            uploadedProjectId = await ApiClient.UploadProjectAsync(projectName.Trim(), fileBytes, selectedFileName);
+            var result = await ApiClient.UploadProjectAsync(projectName.Trim(), fileBytes, selectedFileName);
+            uploadedProjectId = result.ProjectId;
+            Nav.NavigateTo("projects");
         }
         catch (ArgumentException ex)
         {

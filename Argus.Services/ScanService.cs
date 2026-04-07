@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Argus.Dto.Scans;
 using Argus.Data;
+using Argus.Dto.Scans;
 using Argus.Entities;
 using Argus.Interfaces;
+using Argus.Interfaces.Models;
+using Argus.Services.Detection;
 using Microsoft.EntityFrameworkCore;
 
 namespace Argus.Services
@@ -14,11 +16,19 @@ namespace Argus.Services
     {
         private readonly ArgusDbContext _context;
         private readonly IProjectFileScannerService _scanner;
+        private readonly IEnumerable<ISecretDetector> _detectors;
+        private readonly HeuristicFilter _filter;
 
-        public ScanService(ArgusDbContext context, IProjectFileScannerService scanner)
+        public ScanService(
+            ArgusDbContext context,
+            IProjectFileScannerService scanner,
+            IEnumerable<ISecretDetector> detectors,
+            HeuristicFilter filter)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
-            _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
+            _context   = context   ?? throw new ArgumentNullException(nameof(context));
+            _scanner   = scanner   ?? throw new ArgumentNullException(nameof(scanner));
+            _detectors = detectors ?? throw new ArgumentNullException(nameof(detectors));
+            _filter    = filter    ?? throw new ArgumentNullException(nameof(filter));
         }
 
         public async Task<ScanRunDto> StartScanAsync(Guid projectId)
@@ -48,10 +58,53 @@ namespace Argus.Services
             {
                 var files = await _scanner.ScanProjectAsync(project.Path);
 
+                var detectedSecrets = new List<DetectedSecret>();
+
+                foreach (var file in files)
+                {
+                    var allFindings = new List<SecretFinding>();
+
+                    foreach (var detector in _detectors)
+                    {
+                        var findings = await detector.DetectAsync(file);
+                        allFindings.AddRange(findings);
+                    }
+
+                    var filtered = _filter.Filter(allFindings);
+
+                    foreach (var finding in filtered)
+                    {
+                        detectedSecrets.Add(new DetectedSecret
+                        {
+                            Id              = Guid.NewGuid(),
+                            ScanRunId       = scanRun.Id,
+                            Type            = finding.DetectorType.ToString(),
+                            FilePath        = finding.FilePath,
+                            LineNumber      = finding.LineNumber,
+                            MaskedValue     = SecretMasker.MaskValue(finding.MatchedValue),
+                            Hash            = SecretMasker.HashValue(finding.MatchedValue),
+                            RuleId          = finding.RuleId,
+                            Severity        = finding.Severity,
+                            Confidence      = finding.Confidence,
+                            IsFalsePositive = false,
+                            IsReviewed      = false
+                        });
+                    }
+                }
+
+                var uniqueSecrets = detectedSecrets
+                    .GroupBy(s => s.Hash)
+                    .Select(g => g.First())
+                    .ToList();
+
+                if (uniqueSecrets.Count > 0)
+                    _context.DetectedSecrets.AddRange(uniqueSecrets);
+
                 scanRun.FilesScanned = files.Count;
-                scanRun.Status = ScanStatus.Completed;
-                scanRun.CompletedAt = DateTime.UtcNow;
-                scanRun.Duration = scanRun.CompletedAt - scanRun.CreatedAt;
+                scanRun.SecretCount  = uniqueSecrets.Count;
+                scanRun.Status       = ScanStatus.Completed;
+                scanRun.CompletedAt  = DateTime.UtcNow;
+                scanRun.Duration     = scanRun.CompletedAt - scanRun.CreatedAt;
             }
             catch (Exception ex)
             {
