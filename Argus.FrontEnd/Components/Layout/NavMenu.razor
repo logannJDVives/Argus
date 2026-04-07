@@ -1,59 +1,80 @@
 ﻿@inject AuthStateService Auth
 @inject NavigationManager Nav
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">Argus</a>
-    </div>
-</div>
+<header class="topnav">
+    <div class="topnav-inner">
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+        <a class="topnav-brand" href="">
+            <svg class="brand-logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+                <circle cx="12" cy="12" r="3.5" fill="currentColor"/>
+                <line x1="2.5" y1="12" x2="8"   y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <line x1="16"  y1="12" x2="21.5" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <line x1="12"  y1="2.5" x2="12"  y2="8"  stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <line x1="12"  y1="16"  x2="12"  y2="21.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Argus
+        </a>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
+        <nav class="topnav-links" aria-label="Main navigation">
+            @if (Auth.IsAuthenticated)
+            {
+                <NavLink class="nav-lnk" href="projects">Projects</NavLink>
+                <NavLink class="nav-lnk" href="upload">Upload</NavLink>
+            }
+        </nav>
+
+        <div class="topnav-actions">
+            @if (Auth.IsAuthenticated)
+            {
+                <div class="user-badge">
+                    <span class="user-avatar">@(Auth.Email is { Length: > 0 } e ? char.ToUpper(e[0]).ToString() : "U")</span>
+                    <span class="user-email">@Auth.Email</span>
+                </div>
+                <button class="btn-signout" @onclick="Logout">Sign out</button>
+            }
+            else
+            {
+                <NavLink class="btn-ghost" href="login">Sign in</NavLink>
+                <NavLink class="btn-accent" href="register">Register</NavLink>
+            }
         </div>
 
-        @if (Auth.IsAuthenticated)
-        {
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="projects">
-                    <span class="bi bi-folder-fill-nav-menu" aria-hidden="true"></span> Projects
-                </NavLink>
-            </div>
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="upload">
-                    <span class="bi bi-cloud-arrow-up-fill-nav-menu" aria-hidden="true"></span> Upload Project
-                </NavLink>
-            </div>
-            <div class="nav-item px-3 mt-auto">
-                <button class="nav-link btn btn-link text-start w-100" @onclick="Logout">
-                    <span class="bi bi-box-arrow-right-nav-menu" aria-hidden="true"></span> Sign out (@Auth.Email)
-                </button>
-            </div>
-        }
-        else
-        {
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="login">
-                    <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> Sign in
-                </NavLink>
-            </div>
-            <div class="nav-item px-3">
-                <NavLink class="nav-link" href="register">
-                    <span class="bi bi-person-plus-fill-nav-menu" aria-hidden="true"></span> Register
-                </NavLink>
-            </div>
-        }
-    </nav>
-</div>
+        <button class="mobile-toggle" @onclick="ToggleMobileMenu" aria-label="Toggle navigation">
+            <span class="toggle-bar"></span>
+            <span class="toggle-bar"></span>
+            <span class="toggle-bar"></span>
+        </button>
+
+    </div>
+
+    @if (_mobileOpen)
+    {
+        <div class="mobile-menu">
+            @if (Auth.IsAuthenticated)
+            {
+                <NavLink class="mobile-lnk" href="projects" @onclick="CloseMobile">Projects</NavLink>
+                <NavLink class="mobile-lnk" href="upload" @onclick="CloseMobile">Upload</NavLink>
+                <button class="mobile-lnk mobile-signout" @onclick="Logout">Sign out (@Auth.Email)</button>
+            }
+            else
+            {
+                <NavLink class="mobile-lnk" href="login" @onclick="CloseMobile">Sign in</NavLink>
+                <NavLink class="mobile-lnk" href="register" @onclick="CloseMobile">Register</NavLink>
+            }
+        </div>
+    }
+</header>
 
 @code {
+    private bool _mobileOpen;
+
+    private void ToggleMobileMenu() => _mobileOpen = !_mobileOpen;
+    private void CloseMobile()      => _mobileOpen = false;
+
     private void Logout()
     {
+        _mobileOpen = false;
         Auth.Logout();
         Nav.NavigateTo("/login");
     }
