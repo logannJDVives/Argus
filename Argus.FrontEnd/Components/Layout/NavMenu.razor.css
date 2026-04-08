@@ -57,8 +57,8 @@
     border-radius: 6px;
     font-size: 0.875rem;
     font-weight: 500;
-    color: #94a3b8;
-    text-decoration: none;
+    color: #94a3b8 !important;
+    text-decoration: none !important;
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.1);
     cursor: pointer;
@@ -67,14 +67,14 @@
 
 .topnav .nav-lnk:hover {
     background: rgba(56, 189, 248, 0.1);
-    color: #7dd3fc;
+    color: #7dd3fc !important;
     border-color: rgba(56, 189, 248, 0.3);
-    text-decoration: none;
+    text-decoration: none !important;
 }
 
 .topnav .nav-lnk.active {
     background: rgba(56, 189, 248, 0.12);
-    color: #38bdf8;
+    color: #38bdf8 !important;
     border-color: rgba(56, 189, 248, 0.35);
 }
 
@@ -123,8 +123,8 @@
     border-radius: 6px;
     font-size: 0.875rem;
     font-weight: 500;
-    color: #94a3b8;
-    text-decoration: none;
+    color: #94a3b8 !important;
+    text-decoration: none !important;
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.1);
     cursor: pointer;
@@ -133,9 +133,9 @@
 
 .topnav .btn-ghost:hover {
     background: rgba(56, 189, 248, 0.1);
-    color: #7dd3fc;
+    color: #7dd3fc !important;
     border-color: rgba(56, 189, 248, 0.3);
-    text-decoration: none;
+    text-decoration: none !important;
 }
 
 .topnav .btn-accent {
@@ -145,8 +145,8 @@
     border-radius: 6px;
     font-size: 0.875rem;
     font-weight: 500;
-    color: #94a3b8;
-    text-decoration: none;
+    color: #94a3b8 !important;
+    text-decoration: none !important;
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.1);
     cursor: pointer;
@@ -156,9 +156,9 @@
 
 .topnav .btn-accent:hover {
     background: rgba(56, 189, 248, 0.1);
-    color: #7dd3fc;
+    color: #7dd3fc !important;
     border-color: rgba(56, 189, 248, 0.3);
-    text-decoration: none;
+    text-decoration: none !important;
     box-shadow: none;
 }
 

@@ -10,6 +10,7 @@ namespace Argus.Interfaces
         Task<ProjectDto> CreateProjectAsync(CreateProjectDto dto, string userId);
         Task<ProjectDto?> GetProjectByIdAsync(Guid id);
         Task<List<ProjectDto>> GetAllProjectsAsync(string userId);
+        Task<ProjectDto?> UpdateProjectAsync(Guid id, UpdateProjectDto dto, string userId);
         Task DeleteProjectAsync(Guid id, string userId);
     }
 }

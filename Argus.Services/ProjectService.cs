@@ -73,6 +73,20 @@ namespace Argus.Services
             await _context.SaveChangesAsync();
         }
 
+        public async Task<ProjectDto?> UpdateProjectAsync(Guid id, UpdateProjectDto dto, string userId)
+        {
+            var project = await _context.Projects
+                .FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
+
+            if (project == null)
+                return null;
+
+            project.Name = dto.Name;
+            await _context.SaveChangesAsync();
+
+            return MapToDto(project);
+        }
+
         private static ProjectDto MapToDto(Project project)
         {
             return new ProjectDto

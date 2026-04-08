@@ -1,5 +1,6 @@
 ﻿@inject AuthStateService Auth
 @inject NavigationManager Nav
+@implements IDisposable
 
 <header class="topnav">
     <div class="topnav-inner">
@@ -68,6 +69,21 @@
 
 @code {
     private bool _mobileOpen;
+
+    protected override void OnInitialized()
+    {
+        Auth.AuthStateChanged += OnAuthStateChanged;
+    }
+
+    private void OnAuthStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Auth.AuthStateChanged -= OnAuthStateChanged;
+    }
 
     private void ToggleMobileMenu() => _mobileOpen = !_mobileOpen;
     private void CloseMobile()      => _mobileOpen = false;

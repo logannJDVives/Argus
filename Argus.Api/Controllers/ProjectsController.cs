@@ -69,6 +69,26 @@ namespace Argus.API.Controllers
         }
 
         /// <summary>
+        /// Rename a project
+        /// </summary>
+        [HttpPut("{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ProjectDto>> UpdateProject(Guid id, [FromBody] UpdateProjectDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var updated = await _projectService.UpdateProjectAsync(id, dto, UserId);
+
+            if (updated == null)
+                return NotFound(new { message = $"Project with ID {id} not found." });
+
+            return Ok(updated);
+        }
+
+        /// <summary>
         /// Delete a project (cascades to scans and related data)
         /// </summary>
         [HttpDelete("{id}")]
