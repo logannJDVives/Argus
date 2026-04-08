@@ -59,6 +59,19 @@ namespace Argus.Sdk
             return await _httpClient.GetFromJsonAsync<ProjectDto>($"api/projects/{id}", ct);
         }
 
+        public async Task<ProjectDto> UpdateProjectAsync(Guid id, UpdateProjectDto dto, CancellationToken ct = default)
+        {
+            var response = await _httpClient.PutAsJsonAsync($"api/projects/{id}", dto, ct);
+            response.EnsureSuccessStatusCode();
+            return (await response.Content.ReadFromJsonAsync<ProjectDto>(ct))!;
+        }
+
+        public async Task DeleteProjectAsync(Guid id, CancellationToken ct = default)
+        {
+            var response = await _httpClient.DeleteAsync($"api/projects/{id}", ct);
+            response.EnsureSuccessStatusCode();
+        }
+
         public async Task<UploadProjectResponseDto> UploadProjectAsync(
             string name,
             byte[] zipFileBytes,
