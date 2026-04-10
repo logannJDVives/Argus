@@ -17,18 +17,21 @@ namespace Argus.Services
         private readonly ArgusDbContext _context;
         private readonly IProjectFileScannerService _scanner;
         private readonly IEnumerable<ISecretDetector> _detectors;
+        private readonly ICsprojParser _csprojParser;
         private readonly HeuristicFilter _filter;
 
         public ScanService(
             ArgusDbContext context,
             IProjectFileScannerService scanner,
             IEnumerable<ISecretDetector> detectors,
+            ICsprojParser csprojParser,
             HeuristicFilter filter)
         {
-            _context   = context   ?? throw new ArgumentNullException(nameof(context));
-            _scanner   = scanner   ?? throw new ArgumentNullException(nameof(scanner));
-            _detectors = detectors ?? throw new ArgumentNullException(nameof(detectors));
-            _filter    = filter    ?? throw new ArgumentNullException(nameof(filter));
+            _context      = context      ?? throw new ArgumentNullException(nameof(context));
+            _scanner      = scanner      ?? throw new ArgumentNullException(nameof(scanner));
+            _detectors    = detectors    ?? throw new ArgumentNullException(nameof(detectors));
+            _csprojParser = csprojParser ?? throw new ArgumentNullException(nameof(csprojParser));
+            _filter       = filter       ?? throw new ArgumentNullException(nameof(filter));
         }
 
         public async Task<ScanRunDto> StartScanAsync(Guid projectId)
@@ -100,8 +103,47 @@ namespace Argus.Services
                 if (uniqueSecrets.Count > 0)
                     _context.DetectedSecrets.AddRange(uniqueSecrets);
 
-                scanRun.FilesScanned = files.Count;
-                scanRun.SecretCount  = uniqueSecrets.Count;
+                // ── Component parsing (.csproj) ─────────────────────────────
+                var csprojFiles = files
+                    .Where(f => f.Extension.Equals(".csproj", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                var components = new List<SoftwareComponent>();
+
+                foreach (var csproj in csprojFiles)
+                {
+                    var packages = await _csprojParser.ParseAsync(csproj.FullPath);
+
+                    foreach (var pkg in packages)
+                    {
+                        components.Add(new SoftwareComponent
+                        {
+                            Id           = Guid.NewGuid(),
+                            ScanRunId    = scanRun.Id,
+                            Name         = pkg.Name,
+                            Version      = pkg.Version,
+                            Type         = "NuGet",
+                            IsTransitive = pkg.IsTransitive,
+                            License      = string.Empty,
+                            PackageUrl   = $"pkg:nuget/{pkg.Name}@{pkg.Version}",
+                            Description  = string.Empty,
+                            Homepage     = string.Empty,
+                            PublisherUrl = string.Empty
+                        });
+                    }
+                }
+
+                var uniqueComponents = components
+                    .GroupBy(c => c.PackageUrl)
+                    .Select(g => g.First())
+                    .ToList();
+
+                if (uniqueComponents.Count > 0)
+                    _context.SoftwareComponents.AddRange(uniqueComponents);
+
+                scanRun.FilesScanned  = files.Count;
+                scanRun.SecretCount   = uniqueSecrets.Count;
+                scanRun.ComponentCount = uniqueComponents.Count;
                 scanRun.Status       = ScanStatus.Completed;
                 scanRun.CompletedAt  = DateTime.UtcNow;
                 scanRun.Duration     = scanRun.CompletedAt - scanRun.CreatedAt;
