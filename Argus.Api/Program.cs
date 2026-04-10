@@ -63,6 +63,14 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// NUGET HTTP CLIENT (used by NuGetEnricher)
+builder.Services.AddHttpClient("NuGet", client =>
+{
+    client.BaseAddress = new Uri("https://api.nuget.org/");
+    client.DefaultRequestHeaders.Add("User-Agent", "Argus-Scanner/1.0");
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+
 // CUSTOM SERVICES
 builder.Services.AddSingleton<HeuristicFilter>();
 builder.Services.AddScoped<ISecretDetector, RegexDetector>();
@@ -72,6 +80,8 @@ builder.Services.AddScoped<IProjectFileScannerService, ProjectFileScannerService
 builder.Services.AddSingleton<ICsprojParser, Argus.Services.Parsing.CsprojPackageParser>();
 builder.Services.AddScoped<IScanService, ScanService>();
 builder.Services.AddScoped<ISecretService, SecretService>();
+builder.Services.AddScoped<IComponentService, ComponentService>();
+builder.Services.AddScoped<INuGetEnricher, NuGetEnricher>();
 
 var app = builder.Build();
 
