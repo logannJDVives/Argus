@@ -137,7 +137,7 @@ namespace Argus.Data
                 .HasIndex(sc => sc.ScanRunId);
 
             modelBuilder.Entity<SoftwareComponent>()
-                .HasIndex(sc => sc.PackageUrl)
+                .HasIndex(sc => new { sc.ScanRunId, sc.PackageUrl })
                 .IsUnique();
 
             modelBuilder.Entity<SoftwareComponent>()

@@ -69,6 +69,7 @@ builder.Services.AddScoped<ISecretDetector, RegexDetector>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IProjectUploadService, ProjectUploadService>();
 builder.Services.AddScoped<IProjectFileScannerService, ProjectFileScannerService>();
+builder.Services.AddSingleton<ICsprojParser, Argus.Services.Parsing.CsprojPackageParser>();
 builder.Services.AddScoped<IScanService, ScanService>();
 builder.Services.AddScoped<ISecretService, SecretService>();
 
