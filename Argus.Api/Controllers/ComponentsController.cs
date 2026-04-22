@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using System.Threading.Tasks;
 using Argus.Dto.Components;
 using Argus.Interfaces;
@@ -13,11 +14,15 @@ namespace Argus.API.Controllers
     [Route("api/scans/{scanId}/components")]
     public class ComponentsController : ControllerBase
     {
-        private readonly IComponentService _componentService;
+        private readonly IComponentService       _componentService;
+        private readonly ICycloneDxExportService  _cycloneDxExportService;
 
-        public ComponentsController(IComponentService componentService)
+        public ComponentsController(
+            IComponentService      componentService,
+            ICycloneDxExportService cycloneDxExportService)
         {
-            _componentService = componentService ?? throw new ArgumentNullException(nameof(componentService));
+            _componentService       = componentService       ?? throw new ArgumentNullException(nameof(componentService));
+            _cycloneDxExportService = cycloneDxExportService ?? throw new ArgumentNullException(nameof(cycloneDxExportService));
         }
 
         /// <summary>
@@ -34,6 +39,19 @@ namespace Argus.API.Controllers
         {
             var result = await _componentService.GetComponentsByScanAsync(scanId, search, page, pageSize);
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Download de SBOM als CycloneDX JSON-bestand
+        /// </summary>
+        [HttpGet("export/cyclonedx")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> ExportCycloneDx(Guid scanId)
+        {
+            var json  = await _cycloneDxExportService.GenerateCycloneDxJsonAsync(scanId);
+            var bytes = Encoding.UTF8.GetBytes(json);
+            return File(bytes, "application/json", $"sbom-{scanId:N}.cdx.json");
         }
     }
 }
