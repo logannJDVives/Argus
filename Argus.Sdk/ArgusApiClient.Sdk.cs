@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Argus.Dto.Auth;
+using Argus.Dto.Components;
 using Argus.Dto.Projects;
 using Argus.Dto.Scans;
 using Argus.Dto.Secrets;
@@ -149,6 +150,22 @@ namespace Argus.Sdk
             var dto = new ReviewSecretDto { IsReviewed = isReviewed, IsFalsePositive = isFalsePositive };
             var response = await _httpClient.PatchAsJsonAsync($"api/secrets/{id}/review", dto, ct);
             response.EnsureSuccessStatusCode();
+        }
+
+        // ── Components (SBOM) ───────────────────────────────────────────────────
+
+        public async Task<PaginatedComponentsDto> GetComponentsAsync(
+            Guid   scanId,
+            string? search   = null,
+            int    page     = 1,
+            int    pageSize = 25,
+            CancellationToken ct = default)
+        {
+            var url = $"api/scans/{scanId}/components?page={page}&pageSize={pageSize}";
+            if (!string.IsNullOrWhiteSpace(search))
+                url += $"&search={Uri.EscapeDataString(search)}";
+
+            return (await _httpClient.GetFromJsonAsync<PaginatedComponentsDto>(url, ct))!;
         }
     }
 }

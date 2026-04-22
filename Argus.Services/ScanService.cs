@@ -19,19 +19,22 @@ namespace Argus.Services
         private readonly IEnumerable<ISecretDetector> _detectors;
         private readonly ICsprojParser _csprojParser;
         private readonly HeuristicFilter _filter;
+        private readonly INuGetEnricher _nuGetEnricher;
 
         public ScanService(
             ArgusDbContext context,
             IProjectFileScannerService scanner,
             IEnumerable<ISecretDetector> detectors,
             ICsprojParser csprojParser,
-            HeuristicFilter filter)
+            HeuristicFilter filter,
+            INuGetEnricher nuGetEnricher)
         {
-            _context      = context      ?? throw new ArgumentNullException(nameof(context));
-            _scanner      = scanner      ?? throw new ArgumentNullException(nameof(scanner));
-            _detectors    = detectors    ?? throw new ArgumentNullException(nameof(detectors));
-            _csprojParser = csprojParser ?? throw new ArgumentNullException(nameof(csprojParser));
-            _filter       = filter       ?? throw new ArgumentNullException(nameof(filter));
+            _context       = context       ?? throw new ArgumentNullException(nameof(context));
+            _scanner       = scanner       ?? throw new ArgumentNullException(nameof(scanner));
+            _detectors     = detectors     ?? throw new ArgumentNullException(nameof(detectors));
+            _csprojParser  = csprojParser  ?? throw new ArgumentNullException(nameof(csprojParser));
+            _filter        = filter        ?? throw new ArgumentNullException(nameof(filter));
+            _nuGetEnricher = nuGetEnricher ?? throw new ArgumentNullException(nameof(nuGetEnricher));
         }
 
         public async Task<ScanRunDto> StartScanAsync(Guid projectId)
@@ -137,6 +140,30 @@ namespace Argus.Services
                     .GroupBy(c => c.PackageUrl)
                     .Select(g => g.First())
                     .ToList();
+
+                // ── NuGet metadata enrichment ───────────────────────────────
+                // Fetch license, description, homepage and publish date from the
+                // NuGet API for every unique component. Requests run concurrently
+                // (max 10 at a time) so the scan stays fast even for large projects.
+                var semaphore = new System.Threading.SemaphoreSlim(10);
+                var enrichTasks = uniqueComponents.Select(async component =>
+                {
+                    await semaphore.WaitAsync();
+                    try
+                    {
+                        var meta = await _nuGetEnricher.GetMetadataAsync(component.Name, component.Version);
+                        component.License       = meta.License;
+                        component.Description   = meta.Description;
+                        component.Homepage      = meta.Homepage;
+                        component.PublisherUrl  = meta.Authors;
+                        component.PublishedDate = meta.PublishedDate;
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                });
+                await Task.WhenAll(enrichTasks);
 
                 if (uniqueComponents.Count > 0)
                     _context.SoftwareComponents.AddRange(uniqueComponents);
