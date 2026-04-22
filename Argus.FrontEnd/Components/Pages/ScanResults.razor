@@ -2,6 +2,7 @@
 @using Argus.Dto.Components
 @inject ArgusApiClient Api
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <a href="projects/@ProjectId/scans" class="btn btn-sm btn-outline-secondary mb-4">← Back to scan history</a>
 
@@ -195,6 +196,15 @@ else if (_scan is not null)
                        @bind:event="oninput"
                        @bind:after="ResetAndLoadComponentsAsync" />
                 <span class="text-muted small">@_components.TotalCount component@(_components.TotalCount == 1 ? "" : "s")</span>
+                <button class="btn btn-sm btn-outline-success ms-auto"
+                        @onclick="DownloadSbomAsync"
+                        disabled="@_sbomDownloading">
+                    @if (_sbomDownloading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                    }
+                    ⬇ Download CycloneDX
+                </button>
             </div>
 
             <div class="table-responsive">
@@ -309,6 +319,7 @@ else if (_scan is not null)
     // SBOM state
     private string _componentSearch       = string.Empty;
     private int    _currentComponentsPage = 1;
+    private bool   _sbomDownloading       = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -377,6 +388,21 @@ else if (_scan is not null)
         {
             _sbomLoading = false;
             StateHasChanged();
+        }
+    }
+
+    private async Task DownloadSbomAsync()
+    {
+        _sbomDownloading = true;
+        try
+        {
+            var bytes    = await Api.DownloadSbomAsync(ScanId);
+            var fileName = $"sbom-{ScanId:N}.cdx.json";
+            await JS.InvokeVoidAsync("downloadFileFromBytes", fileName, "application/json", bytes);
+        }
+        finally
+        {
+            _sbomDownloading = false;
         }
     }
 

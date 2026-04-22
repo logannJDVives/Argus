@@ -167,5 +167,13 @@ namespace Argus.Sdk
 
             return (await _httpClient.GetFromJsonAsync<PaginatedComponentsDto>(url, ct))!;
         }
+
+        public async Task<byte[]> DownloadSbomAsync(Guid scanId, CancellationToken ct = default)
+        {
+            using var response = await _httpClient.GetAsync(
+                $"api/scans/{scanId}/components/export/cyclonedx", ct);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsByteArrayAsync(ct);
+        }
     }
 }

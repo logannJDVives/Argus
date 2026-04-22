@@ -81,6 +81,7 @@ builder.Services.AddSingleton<ICsprojParser, Argus.Services.Parsing.CsprojPackag
 builder.Services.AddScoped<IScanService, ScanService>();
 builder.Services.AddScoped<ISecretService, SecretService>();
 builder.Services.AddScoped<IComponentService, ComponentService>();
+builder.Services.AddScoped<ICycloneDxExportService, CycloneDxExportService>(); // cycloneDx injection
 builder.Services.AddScoped<INuGetEnricher, NuGetEnricher>();
 
 var app = builder.Build();
