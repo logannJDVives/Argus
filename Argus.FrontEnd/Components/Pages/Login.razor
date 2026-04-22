@@ -3,45 +3,48 @@
 @inject ArgusApiClient Api
 @inject NavigationManager Nav
 
-<div class="container" style="max-width: 420px; margin-top: 80px;">
-    <h3 class="mb-4">Sign in to Argus</h3>
+<div class="auth-page">
+    <div class="auth-card">
 
-    @if (_errorMessage is not null)
-    {
-        <div class="alert alert-danger">@_errorMessage</div>
-    }
-
-    <EditForm Model="_model" OnValidSubmit="HandleLogin">
-        <DataAnnotationsValidator />
-
-        <div class="mb-3">
-            <label class="form-label">Email</label>
-            <InputText class="form-control" @bind-Value="_model.Email" type="email" placeholder="you@example.com" />
-            <ValidationMessage For="() => _model.Email" />
+        <div class="auth-header">
+            <h1 class="auth-title">Sign in</h1>
+            <p class="auth-subtitle">Welcome back to Argus</p>
         </div>
 
-        <div class="mb-3">
-            <label class="form-label">Password</label>
-            <InputText class="form-control" @bind-Value="_model.Password" type="password" />
-            <ValidationMessage For="() => _model.Password" />
-        </div>
+        @if (_errorMessage is not null)
+        {
+            <div class="alert alert-danger mb-4">@_errorMessage</div>
+        }
 
-        <button class="btn btn-primary w-100" type="submit" disabled="@_loading">
-            @if (_loading)
-            {
-                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                <span>Signing in…</span>
-            }
-            else
-            {
-                <span>Sign in</span>
-            }
-        </button>
-    </EditForm>
+        <EditForm Model="_model" OnValidSubmit="HandleLogin">
+            <DataAnnotationsValidator />
 
-    <p class="text-center mt-3 text-muted small">
-        No account? <a href="register">Register here</a>
-    </p>
+            <div class="mb-4">
+                <label class="form-label" for="login-email">Email</label>
+                <InputText id="login-email" class="form-control" @bind-Value="_model.Email" type="email" placeholder="you@example.com" />
+                <ValidationMessage For="() => _model.Email" />
+            </div>
+
+            <div class="mb-5">
+                <label class="form-label" for="login-password">Password</label>
+                <InputText id="login-password" class="form-control" @bind-Value="_model.Password" type="password" placeholder="••••••••" />
+                <ValidationMessage For="() => _model.Password" />
+            </div>
+
+            <button class="btn btn-primary w-100" type="submit" disabled="@_loading">
+                @if (_loading)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                }
+                Sign in
+            </button>
+        </EditForm>
+
+        <p class="auth-footer">
+            No account? <a href="register">Create one</a>
+        </p>
+
+    </div>
 </div>
 
 @code {

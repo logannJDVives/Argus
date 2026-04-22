@@ -3,46 +3,49 @@
 @inject ArgusApiClient Api
 @inject NavigationManager Nav
 
-<div class="container" style="max-width: 420px; margin-top: 80px;">
-    <h3 class="mb-4">Create an account</h3>
+<div class="auth-page">
+    <div class="auth-card">
 
-    @if (_errorMessage is not null)
-    {
-        <div class="alert alert-danger">@_errorMessage</div>
-    }
-
-    <EditForm Model="_model" OnValidSubmit="HandleRegister">
-        <DataAnnotationsValidator />
-
-        <div class="mb-3">
-            <label class="form-label">Email</label>
-            <InputText class="form-control" @bind-Value="_model.Email" type="email" placeholder="you@example.com" />
-            <ValidationMessage For="() => _model.Email" />
+        <div class="auth-header">
+            <h1 class="auth-title">Create account</h1>
+            <p class="auth-subtitle">Start scanning your projects today</p>
         </div>
 
-        <div class="mb-3">
-            <label class="form-label">Password</label>
-            <InputText class="form-control" @bind-Value="_model.Password" type="password" />
-            <ValidationMessage For="() => _model.Password" />
-            <div class="form-text">Minimum 8 characters, must include a digit.</div>
-        </div>
+        @if (_errorMessage is not null)
+        {
+            <div class="alert alert-danger mb-4">@_errorMessage</div>
+        }
 
-        <button class="btn btn-success w-100" type="submit" disabled="@_loading">
-            @if (_loading)
-            {
-                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                <span>Creating account…</span>
-            }
-            else
-            {
-                <span>Register</span>
-            }
-        </button>
-    </EditForm>
+        <EditForm Model="_model" OnValidSubmit="HandleRegister">
+            <DataAnnotationsValidator />
 
-    <p class="text-center mt-3 text-muted small">
-        Already have an account? <a href="login">Sign in</a>
-    </p>
+            <div class="mb-4">
+                <label class="form-label" for="reg-email">Email</label>
+                <InputText id="reg-email" class="form-control" @bind-Value="_model.Email" type="email" placeholder="you@example.com" />
+                <ValidationMessage For="() => _model.Email" />
+            </div>
+
+            <div class="mb-5">
+                <label class="form-label" for="reg-password">Password</label>
+                <InputText id="reg-password" class="form-control" @bind-Value="_model.Password" type="password" placeholder="Min. 8 characters" />
+                <ValidationMessage For="() => _model.Password" />
+                <div class="form-text mt-1">Minimum 8 characters, must include a digit.</div>
+            </div>
+
+            <button class="btn btn-primary w-100" type="submit" disabled="@_loading">
+                @if (_loading)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                }
+                Create account
+            </button>
+        </EditForm>
+
+        <p class="auth-footer">
+            Already have an account? <a href="login">Sign in</a>
+        </p>
+
+    </div>
 </div>
 
 @code {

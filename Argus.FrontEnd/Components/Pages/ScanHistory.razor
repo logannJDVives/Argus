@@ -2,71 +2,86 @@
 @inject ArgusApiClient Api
 @inject NavigationManager Nav
 
-<a href="projects" class="btn btn-sm btn-outline-secondary mb-4">← Back to projects</a>
+<a href="projects" class="back-link">← Projects</a>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">Scan History</h2>
-    <button class="btn btn-success" @onclick="StartScanAsync" disabled="@_scanning">
-        @if (_scanning)
-        {
-            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-            <span>Scanning…</span>
-        }
-        else
-        {
-            <span>▶ Start New Scan</span>
-        }
-    </button>
+<div class="page-header mb-0">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="mb-1">Scan History</h2>
+            <p class="text-muted mb-0">All scan runs for this project.</p>
+        </div>
+        <button class="btn btn-primary" @onclick="StartScanAsync" disabled="@_scanning">
+            @if (_scanning)
+            {
+                <span class="spinner-border spinner-border-sm" role="status"></span>
+                <span>Scanning…</span>
+            }
+            else
+            {
+                <span>▶ New scan</span>
+            }
+        </button>
+    </div>
 </div>
+
+@if (_errorMessage is not null)
+{
+    <div class="alert alert-danger mt-4">@_errorMessage</div>
+}
 
 @if (_loading)
 {
-    <div class="text-center py-5">
+    <div class="state-loading">
         <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-3 text-muted">Loading scans…</p>
     </div>
-}
-else if (_errorMessage is not null)
-{
-    <div class="alert alert-danger">@_errorMessage</div>
 }
 else if (_scans.Count == 0)
 {
-    <div class="alert alert-info">No scans yet. Click <strong>▶ Start New Scan</strong> to begin.</div>
+    <div class="empty-state">
+        <div class="empty-state-icon">🔍</div>
+        <h3 class="empty-state-title">No scans yet</h3>
+        <p class="empty-state-desc">Start a new scan to detect secrets and generate an SBOM for this project.</p>
+        <button class="btn btn-primary px-4" @onclick="StartScanAsync" disabled="@_scanning">
+            @if (_scanning)
+            {
+                <span class="spinner-border spinner-border-sm" role="status"></span>
+            }
+            ▶ Start first scan
+        </button>
+    </div>
 }
 else
 {
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead class="table-light">
-                <tr>
-                    <th>Started</th>
-                    <th>Status</th>
-                    <th class="text-center">Files</th>
-                    <th class="text-center">Secrets</th>
-                    <th>Duration</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var scan in _scans)
-                {
-                    <tr>
-                        <td class="small text-muted">@scan.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
-                        <td><span class="badge @StatusBadgeClass(scan.Status)">@scan.Status</span></td>
-                        <td class="text-center">@(scan.FilesScanned ?? 0)</td>
-                        <td class="text-center fw-semibold @(scan.SecretCount > 0 ? "text-danger" : "text-success")">
-                            @scan.SecretCount
-                        </td>
-                        <td class="small text-muted">
-                            @(scan.Duration.HasValue ? $"{scan.Duration.Value.TotalSeconds:F1}s" : "—")
-                        </td>
-                        <td class="text-end">
-                            <a href="projects/@ProjectId/scans/@scan.Id" class="btn btn-sm btn-outline-primary">View</a>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+    <div class="scan-list mt-4">
+        @foreach (var scan in _scans)
+        {
+            <div class="scan-row">
+                <div class="scan-row-info">
+                    <div class="scan-row-date">@scan.CreatedAt.ToLocalTime().ToString("dd MMM yyyy · HH:mm")</div>
+                    <div class="scan-row-meta">
+                        <span class="badge @StatusBadgeClass(scan.Status)">@scan.Status</span>
+                        @if (scan.Duration.HasValue)
+                        {
+                            <span>@($"{scan.Duration.Value.TotalSeconds:F1}s")</span>
+                        }
+                    </div>
+                </div>
+                <div class="scan-row-stats">
+                    <div class="scan-stat">
+                        <div class="scan-stat-value @(scan.SecretCount > 0 ? "danger" : "success")">@scan.SecretCount</div>
+                        <div class="scan-stat-label">Secrets</div>
+                    </div>
+                    <div class="scan-stat">
+                        <div class="scan-stat-value">@(scan.FilesScanned ?? 0)</div>
+                        <div class="scan-stat-label">Files</div>
+                    </div>
+                </div>
+                <div class="scan-row-actions">
+                    <a href="projects/@ProjectId/scans/@scan.Id" class="btn btn-sm btn-outline-secondary">View results</a>
+                </div>
+            </div>
+        }
     </div>
 }
 
@@ -74,8 +89,8 @@ else
     [Parameter] public Guid ProjectId { get; set; }
 
     private List<ScanRunDto> _scans = [];
-    private bool _loading = true;
-    private bool _scanning;
+    private bool    _loading = true;
+    private bool    _scanning;
     private string? _errorMessage;
 
     protected override async Task OnInitializedAsync()
@@ -96,9 +111,8 @@ else
 
     private async Task StartScanAsync()
     {
-        _scanning = true;
+        _scanning     = true;
         _errorMessage = null;
-
         try
         {
             var scan = await Api.StartScanAsync(ProjectId);
@@ -116,9 +130,9 @@ else
 
     private static string StatusBadgeClass(string status) => status switch
     {
-        "Completed"  => "bg-success",
-        "InProgress" => "bg-warning text-dark",
-        "Failed"     => "bg-danger",
-        _            => "bg-secondary"
+        "Completed"  => "badge-success",
+        "InProgress" => "badge-warning",
+        "Failed"     => "badge-danger",
+        _            => "badge-neutral"
     };
 }

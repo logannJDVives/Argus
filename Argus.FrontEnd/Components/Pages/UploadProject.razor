@@ -4,164 +4,133 @@
 @inject ArgusApiClient ApiClient
 @inject NavigationManager Nav
 
-<div class="upload-container" style="max-width: 500px; margin: 20px auto;">
-    <h2>Upload Project</h2>
+<div class="page-header mb-5">
+    <h2 class="mb-1">Upload project</h2>
+    <p class="text-muted">Upload a ZIP archive to scan for secrets and generate an SBOM.</p>
+</div>
 
+<div class="upload-card">
     @if (isLoading)
     {
-        <div style="padding: 20px; text-align: center;">
-            <p>📤 Uploading project...</p>
-            <p style="font-size: 12px; color: #666;">Please wait...</p>
+        <div class="upload-loading">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-3 mb-1 fw-medium">Uploading project…</p>
+            <p class="text-muted small">This may take a moment</p>
         </div>
     }
     else
     {
         <form @onsubmit="HandleUploadProject">
-            <!-- Project Name Input -->
-            <div style="margin-bottom: 15px;">
-                <label for="projectName" style="display: block; margin-bottom: 5px; font-weight: bold;">
-                    Project Name
-                </label>
-                <input 
-                    type="text" 
-                    id="projectName" 
-                    @bind="projectName"
-                    placeholder="Enter project name"
-                    maxlength="100"
-                    disabled="@isLoading"
-                    style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"
-                />
+
+            <div class="mb-4">
+                <label class="form-label" for="projectName">Project name</label>
+                <input type="text"
+                       id="projectName"
+                       class="form-control"
+                       @bind="projectName"
+                       placeholder="e.g. MyWebApp"
+                       maxlength="100"
+                       disabled="@isLoading" />
             </div>
 
-            <!-- File Input -->
-            <div style="margin-bottom: 15px;">
-                <label for="zipFile" style="display: block; margin-bottom: 5px; font-weight: bold;">
-                    ZIP File (max 50MB)
+            <div class="mb-4">
+                <label class="form-label" for="zipFile">
+                    ZIP file <span class="text-muted fw-normal">(max 50 MB)</span>
                 </label>
-                <InputFile 
-                    id="zipFile" 
-                    OnChange="HandleFileSelected" 
-                    accept=".zip"
-                    disabled="@isLoading"
-                    style="display: block; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"
-                />
-                @if (fileBytes != null)
-                {
-                    <div style="margin-top: 8px; font-size: 12px; color: #666;">
-                        ✓ Selected: @selectedFileName (@FormatFileSize(selectedFileSize))
-                    </div>
-                }
+                <div class="upload-dropzone @(fileBytes != null ? "upload-dropzone--selected" : "")">
+                    <InputFile id="zipFile"
+                               OnChange="HandleFileSelected"
+                               accept=".zip"
+                               disabled="@isLoading"
+                               class="upload-file-input" />
+                    @if (fileBytes != null)
+                    {
+                        <div class="upload-file-info">
+                            <span class="upload-file-icon">📦</span>
+                            <div>
+                                <div class="fw-medium small">@selectedFileName</div>
+                                <div class="text-muted small">@FormatFileSize(selectedFileSize)</div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="upload-placeholder">
+                            <span class="upload-placeholder-icon">⬆</span>
+                            <span class="small text-muted">Click to select a <code>.zip</code> file</span>
+                        </div>
+                    }
+                </div>
             </div>
 
-            <!-- Error Message -->
             @if (!string.IsNullOrEmpty(errorMessage))
             {
-                <div style="padding: 10px; margin-bottom: 15px; background-color: #fee; border: 1px solid #f99; border-radius: 4px; color: #c00;">
-                    <strong>❌ Error:</strong> @errorMessage
-                </div>
+                <div class="alert alert-danger mb-4">@errorMessage</div>
             }
 
-            <!-- Success Message -->
-            @if (uploadedProjectId != Guid.Empty)
-            {
-                <div style="padding: 10px; margin-bottom: 15px; background-color: #efe; border: 1px solid #9f9; border-radius: 4px; color: #060;">
-                    <strong>✅ Success!</strong> Project ID: <code>@uploadedProjectId</code>
-                    <button type="button" @onclick="ResetForm" style="margin-top: 10px; padding: 5px 10px; background: #060; color: white; border: none; border-radius: 3px; cursor: pointer;">
-                        Upload Another
-                    </button>
-                </div>
-            }
-
-            <!-- Submit Button -->
-            <button 
-                type="submit" 
-                disabled="@(fileBytes == null || string.IsNullOrWhiteSpace(projectName) || isLoading)"
-                style="width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;"
-            >
-                @(isLoading ? "Uploading..." : "Upload Project")
+            <button type="submit"
+                    class="btn btn-primary w-100"
+                    disabled="@(fileBytes == null || string.IsNullOrWhiteSpace(projectName) || isLoading)">
+                Upload &amp; scan
             </button>
+
         </form>
     }
 </div>
 
 @code {
-    private const long MaxFileSize = 50 * 1024 * 1024; // 50MB
+    private const long MaxFileSize = 50 * 1024 * 1024;
 
-    private string projectName = "";
-    private byte[] fileBytes;
-    private string selectedFileName = "";
-    private long selectedFileSize = 0;
-    private bool isLoading = false;
-    private string errorMessage = "";
-    private Guid uploadedProjectId = Guid.Empty;
+    private string   projectName      = string.Empty;
+    private byte[]?  fileBytes;
+    private string   selectedFileName = string.Empty;
+    private long     selectedFileSize;
+    private bool     isLoading;
+    private string   errorMessage     = string.Empty;
+    private Guid     uploadedProjectId;
 
     private async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
-        errorMessage = "";
+        errorMessage      = string.Empty;
         uploadedProjectId = Guid.Empty;
 
         var file = e.File;
 
-        // Validate file
         if (file.ContentType != "application/zip" && !file.Name.EndsWith(".zip"))
         {
-            errorMessage = "File must be a ZIP archive (.zip)";
-            fileBytes = null;
-            selectedFileName = "";
-            selectedFileSize = 0;
+            errorMessage = "Only ZIP archives (.zip) are supported.";
+            fileBytes    = null;
             return;
         }
 
         if (file.Size > MaxFileSize)
         {
-            errorMessage = $"File is too large. Maximum size is 50MB, your file is {FormatFileSize(file.Size)}";
-            fileBytes = null;
-            selectedFileName = "";
-            selectedFileSize = 0;
+            errorMessage = $"File is too large. Maximum is 50 MB (yours: {FormatFileSize(file.Size)}).";
+            fileBytes    = null;
             return;
         }
 
-        using var readStream = file.OpenReadStream(MaxFileSize);
-        using var ms = new MemoryStream();
-        await readStream.CopyToAsync(ms);
+        using var stream = file.OpenReadStream(MaxFileSize);
+        using var ms     = new MemoryStream();
+        await stream.CopyToAsync(ms);
 
-        fileBytes = ms.ToArray();
+        fileBytes        = ms.ToArray();
         selectedFileName = file.Name;
         selectedFileSize = file.Size;
     }
 
     private async Task HandleUploadProject()
     {
-        // Validation
-        if (fileBytes == null)
-        {
-            errorMessage = "Please select a file";
+        if (fileBytes is null || string.IsNullOrWhiteSpace(projectName))
             return;
-        }
-
-        if (string.IsNullOrWhiteSpace(projectName))
-        {
-            errorMessage = "Please enter a project name";
-            return;
-        }
 
         try
         {
-            isLoading = true;
-            errorMessage = "";
-            uploadedProjectId = Guid.Empty;
+            isLoading    = true;
+            errorMessage = string.Empty;
 
             var result = await ApiClient.UploadProjectAsync(projectName.Trim(), fileBytes, selectedFileName);
-            uploadedProjectId = result.ProjectId;
-            Nav.NavigateTo("projects");
-        }
-        catch (ArgumentException ex)
-        {
-            errorMessage = $"Validation error: {ex.Message}";
-        }
-        catch (HttpRequestException ex)
-        {
-            errorMessage = $"API error: {ex.Message}. Make sure the backend is running.";
+            Nav.NavigateTo($"projects/{result.ProjectId}/scans");
         }
         catch (Exception ex)
         {
@@ -175,18 +144,18 @@
 
     private void ResetForm()
     {
-        projectName = "";
-        fileBytes = null;
-        selectedFileName = "";
+        projectName      = string.Empty;
+        fileBytes        = null;
+        selectedFileName = string.Empty;
         selectedFileSize = 0;
-        errorMessage = "";
+        errorMessage     = string.Empty;
         uploadedProjectId = Guid.Empty;
     }
 
-    private string FormatFileSize(long bytes)
+    private static string FormatFileSize(long bytes) => bytes switch
     {
-        if (bytes < 1024) return $"{bytes} B";
-        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F2} KB";
-        return $"{bytes / (1024.0 * 1024):F2} MB";
-    }
+        < 1024        => $"{bytes} B",
+        < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
+        _             => $"{bytes / (1024.0 * 1024):F1} MB"
+    };
 }
