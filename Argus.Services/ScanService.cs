@@ -68,33 +68,41 @@ namespace Argus.Services
 
                 foreach (var file in files)
                 {
-                    var allFindings = new List<SecretFinding>();
-
-                    foreach (var detector in _detectors)
+                    try
                     {
-                        var findings = await detector.DetectAsync(file);
-                        allFindings.AddRange(findings);
-                    }
+                        var allFindings = new List<SecretFinding>();
 
-                    var filtered = _filter.Filter(allFindings);
-
-                    foreach (var finding in filtered)
-                    {
-                        detectedSecrets.Add(new DetectedSecret
+                        foreach (var detector in _detectors)
                         {
-                            Id              = Guid.NewGuid(),
-                            ScanRunId       = scanRun.Id,
-                            Type            = finding.DetectorType.ToString(),
-                            FilePath        = finding.FilePath,
-                            LineNumber      = finding.LineNumber,
-                            MaskedValue     = SecretMasker.MaskValue(finding.MatchedValue),
-                            Hash            = SecretMasker.HashValue(finding.MatchedValue),
-                            RuleId          = finding.RuleId,
-                            Severity        = finding.Severity,
-                            Confidence      = finding.Confidence,
-                            IsFalsePositive = false,
-                            IsReviewed      = false
-                        });
+                            var findings = await detector.DetectAsync(file);
+                            allFindings.AddRange(findings);
+                        }
+
+                        var filtered = _filter.Filter(allFindings);
+
+                        foreach (var finding in filtered)
+                        {
+                            detectedSecrets.Add(new DetectedSecret
+                            {
+                                Id              = Guid.NewGuid(),
+                                ScanRunId       = scanRun.Id,
+                                Type            = finding.DetectorType.ToString(),
+                                FilePath        = finding.FilePath,
+                                LineNumber      = finding.LineNumber,
+                                MaskedValue     = SecretMasker.MaskValue(finding.MatchedValue),
+                                Hash            = SecretMasker.HashValue(finding.MatchedValue),
+                                RuleId          = finding.RuleId,
+                                Severity        = finding.Severity,
+                                Confidence      = finding.Confidence,
+                                IsFalsePositive = false,
+                                IsReviewed      = false
+                            });
+                        }
+                    }
+                    catch
+                    {
+                        // Skip files that cause unexpected errors so one bad file
+                        // never aborts the entire scan run.
                     }
                 }
 
