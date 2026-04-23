@@ -49,7 +49,16 @@ namespace Argus.Services.Detection
         public async Task<IReadOnlyList<SecretFinding>> DetectAsync(ScannedFile file)
         {
             var findings = new List<SecretFinding>();
-            var lines = await File.ReadAllLinesAsync(file.FullPath);
+
+            string[] lines;
+            try
+            {
+                lines = await File.ReadAllLinesAsync(file.FullPath);
+            }
+            catch
+            {
+                return findings;
+            }
 
             for (var lineNumber = 1; lineNumber <= lines.Length; lineNumber++)
             {

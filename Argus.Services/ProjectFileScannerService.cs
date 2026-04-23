@@ -46,6 +46,9 @@ namespace Argus.Services
                 if (category is null)
                     continue;
 
+                if (IsBinaryFile(file))
+                    continue;
+
                 results.Add(new ScannedFile
                 {
                     FullPath     = file.FullName,
@@ -79,6 +82,35 @@ namespace Argus.Services
                 return category;
 
             return null;
+        }
+
+        /// <summary>
+        /// Returns true when the first 8 KB of the file contains a null byte,
+        /// which is a reliable heuristic for binary content.
+        /// </summary>
+        private static bool IsBinaryFile(FileInfo file)
+        {
+            const int sampleSize = 8 * 1024; // 8 KB
+
+            try
+            {
+                using var fs     = file.OpenRead();
+                var       buffer = new byte[sampleSize];
+                var       read   = fs.Read(buffer, 0, sampleSize);
+
+                for (var i = 0; i < read; i++)
+                {
+                    if (buffer[i] == 0x00)
+                        return true;
+                }
+
+                return false;
+            }
+            catch
+            {
+                // If we can't read the file, treat it as binary to skip safely.
+                return true;
+            }
         }
     }
 }
