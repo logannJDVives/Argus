@@ -123,8 +123,15 @@ namespace Argus.API.Controllers
             if (!file.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                 return BadRequest(new { message = "File must be a ZIP archive." });
 
-            var result = await _uploadService.UploadAndCreateProjectAsync(file, UserId);
-            return CreatedAtAction(nameof(GetProject), new { id = result.ProjectId }, result);
+            try
+            {
+                var result = await _uploadService.UploadAndCreateProjectAsync(file, UserId);
+                return CreatedAtAction(nameof(GetProject), new { id = result.ProjectId }, result);
+            }
+            catch (UploadValidationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }
