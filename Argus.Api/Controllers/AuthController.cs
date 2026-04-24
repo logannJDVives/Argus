@@ -25,7 +25,7 @@ namespace Argus.API.Controllers
             _userManager = userManager;
             _config      = config;
         }
-
+        //post
         [HttpPost("register")]
         [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
