@@ -1,0 +1,493 @@
+@page "/reservations"
+
+<PageTitle>Reserveringen - VivesRental</PageTitle>
+
+<link href="css/pages/reservations.css" rel="stylesheet" />
+
+<h1>@(AuthSdk.IsAdmin() ? "Reserveringen" : "Mijn Reserveringen")</h1>
+
+@if (_error != null)
+{
+    <div class="alert alert-danger alert-dismissible">
+        @_error
+        <button type="button" class="btn-close" @onclick="() => _error = null"></button>
+    </div>
+}
+
+@if (_success != null)
+{
+    <div class="alert alert-success alert-dismissible">
+        @_success
+        <button type="button" class="btn-close" @onclick="() => _success = null"></button>
+    </div>
+}
+
+@if (_loading)
+{
+    <p>Laden...</p>
+}
+else
+{
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <div class="filter-section">
+            @if (AuthSdk.IsAdmin())
+            {
+                <input type="text" class="form-control" placeholder="Zoek op klantnaam..." 
+                       @bind="_searchText" @bind:event="oninput" @onkeyup="ApplyFilter" style="max-width: 300px;" />
+            }
+            else
+            {
+                <span></span>
+            }
+        </div>
+        <button class="btn btn-primary" @onclick="OpenCreateModal">+ Nieuwe Reservering</button>
+    </div>
+
+    @if (_filteredReservations.Count == 0)
+    {
+        <p class="text-muted">
+            @(AuthSdk.IsAdmin() ? "Geen reserveringen gevonden." : "U heeft nog geen reserveringen aangemaakt.")
+        </p>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    @if (AuthSdk.IsAdmin())
+                    {
+                        <th>Klant</th>
+                    }
+                    <th>Product</th>
+                    <th>Van</th>
+                    <th>Tot</th>
+                    <th>Status</th>
+                    @if (AuthSdk.IsAdmin())
+                    {
+                        <th>Acties</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var reservation in _filteredReservations)
+                {
+                    var isExpired = reservation.UntilDateTime < DateTime.Now;
+                    var isActive = reservation.FromDateTime <= DateTime.Now && reservation.UntilDateTime >= DateTime.Now;
+                    
+                    <tr class="@(isExpired ? "table-secondary" : "")">
+                        @if (AuthSdk.IsAdmin())
+                        {
+                            <td>
+                                <strong>@reservation.CustomerFirstName @reservation.CustomerLastName</strong>
+                                <br/><small class="text-muted">@reservation.CustomerEmail</small>
+                            </td>
+                        }
+                        <td>@reservation.ProductName</td>
+                        <td>@reservation.FromDateTime.ToString("dd-MM-yyyy")</td>
+                        <td>@reservation.UntilDateTime.ToString("dd-MM-yyyy")</td>
+                        <td>
+                            @if (isExpired)
+                            {
+                                <span class="badge bg-secondary">Verlopen</span>
+                            }
+                            else if (isActive)
+                            {
+                                <span class="badge bg-success">Actief</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-info">Gepland</span>
+                            }
+                        </td>
+                        @if (AuthSdk.IsAdmin())
+                        {
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteReservation(reservation.Id)" disabled="@_processing">
+                                    Verwijderen
+                                </button>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+<!-- Modal: Nieuwe Reservering -->
+@if (_showModal)
+{
+    <div class="modal-backdrop" @onclick="CloseModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Nieuwe Reservering</h3>
+                <button class="modal-close" @onclick="CloseModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                @if (AuthSdk.IsAdmin())
+                {
+                    <!-- Admin: Klant selecteren -->
+                    <div class="form-group">
+                        <label>Klant *</label>
+                        <input type="text" class="form-control" placeholder="Zoek klant..." 
+                               @bind="_customerSearch" @bind:event="oninput" @onfocus="() => _showCustomerDropdown = true" />
+                        @if (_showCustomerDropdown && _filteredCustomers.Count > 0)
+                        {
+                            <div class="dropdown-list">
+                                @foreach (var customer in _filteredCustomers.Take(5))
+                                {
+                                    <div class="dropdown-item" @onclick="() => SelectCustomer(customer)">
+                                        @customer.FirstName @customer.LastName (@customer.Email)
+                                    </div>
+                                }
+                            </div>
+                        }
+                        @if (_selectedCustomer != null)
+                        {
+                            <small class="text-success">Geselecteerd: @_selectedCustomer.FirstName @_selectedCustomer.LastName</small>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <!-- Klant: Toon eigen gegevens (niet bewerkbaar) -->
+                    <div class="alert alert-info">
+                        <strong>Reservering voor:</strong> @AuthSdk.GetUserFirstName() @AuthSdk.GetUserLastName()
+                        <br/><small>@AuthSdk.GetUserEmail()</small>
+                    </div>
+                }
+
+                <!-- Eerst datums kiezen, dan product -->
+                <div class="form-group">
+                    <label>Startdatum *</label>
+                    <input type="date" class="form-control" @bind="_fromDate" @bind:after="OnDateChanged" 
+                           min="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                </div>
+
+                <div class="form-group">
+                    <label>Einddatum *</label>
+                    <input type="date" class="form-control" @bind="_untilDate" @bind:after="OnDateChanged"
+                           min="@_fromDate.ToString("yyyy-MM-dd")" />
+                </div>
+
+                <div class="form-group">
+                    <label>Product * (beschikbaar in gekozen periode)</label>
+                    <select class="form-select" @bind="_selectedProductId" @bind:after="OnProductChanged">
+                        <option value="">-- Selecteer product --</option>
+                        @foreach (var product in _availableProducts)
+                        {
+                            var available = GetAvailableCountForProduct(product.Id);
+                            <option value="@product.Id" disabled="@(available == 0)">
+                                @product.Name (@available van @product.NumberOfArticles beschikbaar, max @product.RentalExpiresAfterDays dagen)
+                            </option>
+                        }
+                    </select>
+                    @if (_availableProducts.Count == 0)
+                    {
+                        <small class="text-warning">Geen producten beschikbaar in deze periode.</small>
+                    }
+                </div>
+
+                @if (_maxRentalDays > 0 && (_untilDate - _fromDate).Days > _maxRentalDays)
+                {
+                    <div class="alert alert-warning">
+                        <strong>Let op:</strong> Maximum @_maxRentalDays dagen voor dit product. Pas uw einddatum aan.
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModal">Annuleren</button>
+                <button class="btn btn-primary" @onclick="CreateReservation" disabled="@(!CanCreate || _processing)">
+                    @if (_processing) { <span>Bezig...</span> } else { <span>Reserveren</span> }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Inject] private IArticleReservationSdk ReservationSdk { get; set; } = default!;
+    [Inject] private ICustomerSdk CustomerSdk { get; set; } = default!;
+    [Inject] private IProductSdk ProductSdk { get; set; } = default!;
+    [Inject] private IArticleSdk ArticleSdk { get; set; } = default!;
+    [Inject] private IAuthSdk AuthSdk { get; set; } = default!;
+
+    private IList<ArticleReservationResult> _reservations = [];
+    private IList<ArticleReservationResult> _allReservations = []; 
+    private IList<ArticleReservationResult> _filteredReservations = [];
+    private IList<CustomerResult> _customers = [];
+    private IList<CustomerResult> _filteredCustomers = [];
+    private IList<ProductResult> _products = [];
+    private IList<ProductResult> _availableProducts = [];
+    private IList<ArticleResult> _articles = [];
+
+    private string _searchText = "";
+    private bool _loading = true;
+    private bool _processing;
+    private string? _error;
+    private string? _success;
+
+    // Create modal state
+    private bool _showModal;
+    private string _customerSearch = "";
+    private bool _showCustomerDropdown;
+    private CustomerResult? _selectedCustomer;
+    private string _selectedProductId = "";
+    private DateTime _fromDate = DateTime.Today;
+    private DateTime _untilDate = DateTime.Today.AddDays(7);
+    private int _maxRentalDays = 0;
+
+    private bool CanCreate => 
+        (AuthSdk.IsAdmin() ? _selectedCustomer != null : AuthSdk.GetUserId() != null) && 
+        !string.IsNullOrEmpty(_selectedProductId) &&
+        _untilDate >= _fromDate &&
+        (_maxRentalDays == 0 || (_untilDate - _fromDate).Days <= _maxRentalDays) &&
+        GetAvailableCountForProduct(Guid.TryParse(_selectedProductId, out var pid) ? pid : Guid.Empty) > 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadData();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        try
+        {
+            _allReservations = await ReservationSdk.FindAsync();
+            if (AuthSdk.IsAdmin())
+            {
+                _reservations = _allReservations;
+                _customers = await CustomerSdk.FindAsync();
+            }
+            else
+            {
+                var userId = AuthSdk.GetUserId();
+                _reservations = _allReservations.Where(r => r.CustomerId == userId).ToList();
+            }
+            
+            _products = await ProductSdk.FindAsync();
+            _articles = await ArticleSdk.FindAsync();
+            
+            UpdateAvailableProducts();
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        var filtered = _reservations.AsEnumerable();
+
+        if (AuthSdk.IsAdmin() && !string.IsNullOrWhiteSpace(_searchText))
+        {
+            filtered = filtered.Where(r => 
+                r.CustomerFirstName.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                r.CustomerLastName.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                $"{r.CustomerFirstName} {r.CustomerLastName}".Contains(_searchText, StringComparison.OrdinalIgnoreCase));
+        }
+
+        _filteredReservations = filtered.OrderByDescending(r => r.FromDateTime).ToList();
+
+        if (AuthSdk.IsAdmin())
+        {
+            _filteredCustomers = string.IsNullOrWhiteSpace(_customerSearch)
+                ? _customers.Take(5).ToList()
+                : _customers
+                    .Where(c => 
+                        c.FirstName.Contains(_customerSearch, StringComparison.OrdinalIgnoreCase) ||
+                        c.LastName.Contains(_customerSearch, StringComparison.OrdinalIgnoreCase) ||
+                        c.Email.Contains(_customerSearch, StringComparison.OrdinalIgnoreCase))
+                    .Take(5)
+                    .ToList();
+        }
+    }
+
+    private void OnDateChanged()
+    {
+        if (_untilDate < _fromDate)
+        {
+            _untilDate = _fromDate.AddDays(1);
+        }
+        
+        UpdateAvailableProducts();
+        
+        if (_maxRentalDays > 0 && (_untilDate - _fromDate).Days > _maxRentalDays)
+        {
+            _untilDate = _fromDate.AddDays(_maxRentalDays);
+        }
+    }
+
+    private void UpdateAvailableProducts()
+    {
+        _availableProducts = _products.Where(p => p.NumberOfArticles > 0).ToList();
+    }
+
+    private int GetAvailableCountForProduct(Guid productId)
+    {
+        var productArticles = _articles.Where(a => a.ProductId == productId && a.Status == ArticleStatus.Normal).ToList();
+        var reservedArticleIds = _allReservations
+            .Where(r => 
+                r.FromDateTime < _untilDate && 
+                r.UntilDateTime > _fromDate)
+            .Select(r => r.ArticleId)
+            .ToHashSet();
+
+        return productArticles.Count(a => !reservedArticleIds.Contains(a.Id));
+    }
+
+    private void OnProductChanged()
+    {
+        if (!string.IsNullOrEmpty(_selectedProductId) && Guid.TryParse(_selectedProductId, out var productId))
+        {
+            var product = _products.FirstOrDefault(p => p.Id == productId);
+            if (product != null)
+            {
+                _maxRentalDays = product.RentalExpiresAfterDays;
+                if ((_untilDate - _fromDate).Days > _maxRentalDays)
+                {
+                    _untilDate = _fromDate.AddDays(_maxRentalDays);
+                }
+            }
+        }
+        else
+        {
+            _maxRentalDays = 0;
+        }
+    }
+
+    private void CloseModal()
+    {
+        _showModal = false;
+        _selectedCustomer = null;
+        _selectedProductId = "";
+        _customerSearch = "";
+        _showCustomerDropdown = false;
+        _fromDate = DateTime.Today;
+        _untilDate = DateTime.Today.AddDays(7);
+        _maxRentalDays = 0;
+    }
+
+    private void OpenCreateModal()
+    {
+        CloseModal();
+        UpdateAvailableProducts();
+        _showModal = true;
+    }
+
+    private void SelectCustomer(CustomerResult customer)
+    {
+        _selectedCustomer = customer;
+        _customerSearch = $"{customer.FirstName} {customer.LastName}";
+        _showCustomerDropdown = false;
+    }
+
+    private async Task CreateReservation()
+    {
+        if (!CanCreate) return;
+
+        _processing = true;
+        _error = null;
+        try
+        {
+            Guid customerId;
+            
+            if (AuthSdk.IsAdmin())
+            {
+                customerId = _selectedCustomer!.Id;
+            }
+            else
+            {
+                var userId = AuthSdk.GetUserId();
+                if (userId == null)
+                {
+                    _error = "Kon uw gebruikers-ID niet ophalen. Log opnieuw in.";
+                    _processing = false;
+                    return;
+                }
+                customerId = userId.Value;
+            }
+
+            var productId = Guid.Parse(_selectedProductId);
+            
+            var reservedArticleIds = _allReservations
+                .Where(r => 
+                    r.FromDateTime < _untilDate && 
+                    r.UntilDateTime > _fromDate)
+                .Select(r => r.ArticleId)
+                .ToHashSet();
+
+            var availableArticle = _articles
+                .Where(a => a.ProductId == productId && a.Status == ArticleStatus.Normal)
+                .FirstOrDefault(a => !reservedArticleIds.Contains(a.Id));
+
+            if (availableArticle == null)
+            {
+                _error = "Geen beschikbare artikelen gevonden voor dit product in de gekozen periode.";
+                _processing = false;
+                return;
+            }
+
+            var request = new ArticleReservationRequest
+            {
+                ArticleId = availableArticle.Id,
+                CustomerId = customerId,
+                FromDateTime = _fromDate,
+                UntilDateTime = _untilDate
+            };
+
+            var result = await ReservationSdk.CreateAsync(request);
+            if (result == null)
+            {
+                _error = "Kon reservering niet aanmaken. Mogelijk is het artikel al gereserveerd.";
+                _processing = false;
+                return;
+            }
+
+            _success = "Reservering succesvol aangemaakt! Een verhuurorder is automatisch aangemaakt.";
+            CloseModal();
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _processing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteReservation(Guid id)
+    {
+        _processing = true;
+        try
+        {
+            await ReservationSdk.DeleteAsync(id);
+            _success = "Reservering verwijderd.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _processing = false;
+            StateHasChanged();
+        }
+    }
+}

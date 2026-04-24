@@ -1,0 +1,79 @@
+@page "/login"
+@inject AuthStateService Auth
+@inject ArgusApiClient Api
+@inject NavigationManager Nav
+
+<div class="auth-page">
+    <div class="auth-card">
+
+        <div class="auth-header">
+            <h1 class="auth-title">Sign in</h1>
+            <p class="auth-subtitle">Welcome back to Argus</p>
+        </div>
+
+        @if (_errorMessage is not null)
+        {
+            <div class="alert alert-danger mb-4">@_errorMessage</div>
+        }
+
+        <EditForm Model="_model" OnValidSubmit="HandleLogin">
+            <DataAnnotationsValidator />
+
+            <div class="mb-4">
+                <label class="form-label" for="login-email">Email</label>
+                <InputText id="login-email" class="form-control" @bind-Value="_model.Email" type="email" placeholder="you@example.com" />
+                <ValidationMessage For="() => _model.Email" />
+            </div>
+
+            <div class="mb-5">
+                <label class="form-label" for="login-password">Password</label>
+                <InputText id="login-password" class="form-control" @bind-Value="_model.Password" type="password" placeholder="••••••••" />
+                <ValidationMessage For="() => _model.Password" />
+            </div>
+
+            <button class="btn btn-primary w-100" type="submit" disabled="@_loading">
+                @if (_loading)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                }
+                Sign in
+            </button>
+        </EditForm>
+
+        <p class="auth-footer">
+            No account? <a href="register">Create one</a>
+        </p>
+
+    </div>
+</div>
+
+@code {
+    private readonly LoginDto _model = new();
+    private string? _errorMessage;
+    private bool _loading;
+
+    protected override void OnInitialized()
+    {
+        if (Auth.IsAuthenticated)
+            Nav.NavigateTo("/projects");
+    }
+
+    private async Task HandleLogin()
+    {
+        _loading      = true;
+        _errorMessage = null;
+
+        try
+        {
+            var response = await Api.LoginAsync(new LoginDto { Email = _model.Email, Password = _model.Password });
+            Auth.SetSession(response);
+            Nav.NavigateTo("/projects");
+        }
+        catch
+        {
+            _errorMessage = "Invalid email or password.";
+        }
+
+        _loading = false;
+    }
+}

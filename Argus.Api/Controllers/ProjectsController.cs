@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Argus.Dto.Projects;
 using Argus.Interfaces;
+using Argus.Services.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -110,8 +111,8 @@ namespace Argus.API.Controllers
         /// </summary>
         [HttpPost("upload")]
         [Consumes("multipart/form-data")]
-        [RequestSizeLimit(100_000_000)] // 100 MB — Kestrel default is 28.6 MB
-        [RequestFormLimits(MultipartBodyLengthLimit = 100_000_000)]
+        [RequestSizeLimit(200_000_000)] // 200 MB — Kestrel default is 28.6 MB
+        [RequestFormLimits(MultipartBodyLengthLimit = 200_000_000)]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<UploadProjectResponseDto>> UploadProject(IFormFile file, [FromForm] string projectName = null)
@@ -122,8 +123,15 @@ namespace Argus.API.Controllers
             if (!file.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                 return BadRequest(new { message = "File must be a ZIP archive." });
 
-            var result = await _uploadService.UploadAndCreateProjectAsync(file, UserId);
-            return CreatedAtAction(nameof(GetProject), new { id = result.ProjectId }, result);
+            try
+            {
+                var result = await _uploadService.UploadAndCreateProjectAsync(file, UserId);
+                return CreatedAtAction(nameof(GetProject), new { id = result.ProjectId }, result);
+            }
+            catch (UploadValidationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }

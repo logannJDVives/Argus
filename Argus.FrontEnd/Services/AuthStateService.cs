@@ -30,7 +30,7 @@ namespace Argus.FrontEnd.Services
             Preferences.Default.Set(EmailKey, Email);
             AuthStateChanged?.Invoke();
         }
-
+        //sk-9fA7xQ2LmZ8vP1rT6YcK4dNwB3uH5jE0sGqR7XyUoCzVhM1LpI
         public void Logout()
         {
             Token = null;

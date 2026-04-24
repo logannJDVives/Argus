@@ -1,0 +1,80 @@
+@page "/register"
+@inject AuthStateService Auth
+@inject ArgusApiClient Api
+@inject NavigationManager Nav
+
+<div class="auth-page">
+    <div class="auth-card">
+
+        <div class="auth-header">
+            <h1 class="auth-title">Create account</h1>
+            <p class="auth-subtitle">Start scanning your projects today</p>
+        </div>
+
+        @if (_errorMessage is not null)
+        {
+            <div class="alert alert-danger mb-4">@_errorMessage</div>
+        }
+
+        <EditForm Model="_model" OnValidSubmit="HandleRegister">
+            <DataAnnotationsValidator />
+
+            <div class="mb-4">
+                <label class="form-label" for="reg-email">Email</label>
+                <InputText id="reg-email" class="form-control" @bind-Value="_model.Email" type="email" placeholder="you@example.com" />
+                <ValidationMessage For="() => _model.Email" />
+            </div>
+
+            <div class="mb-5">
+                <label class="form-label" for="reg-password">Password</label>
+                <InputText id="reg-password" class="form-control" @bind-Value="_model.Password" type="password" placeholder="Min. 8 characters" />
+                <ValidationMessage For="() => _model.Password" />
+                <div class="form-text mt-1">Minimum 8 characters, must include a digit.</div>
+            </div>
+
+            <button class="btn btn-primary w-100" type="submit" disabled="@_loading">
+                @if (_loading)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                }
+                Create account
+            </button>
+        </EditForm>
+
+        <p class="auth-footer">
+            Already have an account? <a href="login">Sign in</a>
+        </p>
+
+    </div>
+</div>
+
+@code {
+    private readonly RegisterDto _model = new();
+    private string? _errorMessage;
+    private bool _loading;
+
+    protected override void OnInitialized()
+    {
+        if (Auth.IsAuthenticated)
+            Nav.NavigateTo("/projects");
+    }
+
+    private async Task HandleRegister()
+    {
+        _loading      = true;
+        _errorMessage = null;
+
+        try
+        {
+            var response = await Api.RegisterAsync(new RegisterDto { Email = _model.Email, Password = _model.Password });
+            Auth.SetSession(response);
+            Nav.NavigateTo("/projects");
+        }
+        catch
+        {
+            _errorMessage = "Registration failed. The email may already be in use.";
+        }
+
+        _loading = false;
+    }
+}
