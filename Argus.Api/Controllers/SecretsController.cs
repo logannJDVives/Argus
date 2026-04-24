@@ -28,8 +28,8 @@ namespace Argus.API.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<PaginatedSecretsDto>> GetSecrets(
             Guid scanId,
-            [FromQuery] string severity = null,
-            [FromQuery] string filePath = null,
+            [FromQuery] string? severity = null,
+            [FromQuery] string? filePath = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10)
         {

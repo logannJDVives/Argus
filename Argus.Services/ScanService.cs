@@ -200,7 +200,18 @@ namespace Argus.Services
                 scanRun.CompletedAt = DateTime.UtcNow;
             }
 
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                scanRun.Status       = ScanStatus.Failed;
+                scanRun.ErrorMessage = ex.Message;
+                scanRun.CompletedAt  = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
+
             return MapToDto(scanRun);
         }
 
