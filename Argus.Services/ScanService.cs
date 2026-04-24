@@ -109,6 +109,8 @@ namespace Argus.Services
                 var uniqueSecrets = detectedSecrets
                     .GroupBy(s => s.Hash)
                     .Select(g => g.First())
+                    .GroupBy(s => new { s.FilePath, s.LineNumber })
+                    .Select(g => g.First())
                     .ToList();
 
                 if (uniqueSecrets.Count > 0)
@@ -198,7 +200,18 @@ namespace Argus.Services
                 scanRun.CompletedAt = DateTime.UtcNow;
             }
 
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                scanRun.Status       = ScanStatus.Failed;
+                scanRun.ErrorMessage = ex.Message;
+                scanRun.CompletedAt  = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
+
             return MapToDto(scanRun);
         }
 

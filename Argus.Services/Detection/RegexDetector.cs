@@ -34,6 +34,12 @@ namespace Argus.Services.Detection
         [GeneratedRegex(@"(AccountKey|SharedAccessKey)\s*=\s*[A-Za-z0-9+/=]{20,}", RegexOptions.IgnoreCase)]
         private static partial Regex AzureKeyPattern();
 
+        [GeneratedRegex(@"sk-[A-Za-z0-9]{32,}")]
+        private static partial Regex OpenAiKeyPattern();
+
+        [GeneratedRegex(@"sk_live_[A-Za-z0-9]{24,}")]
+        private static partial Regex StripeKeyPattern();
+
         private static readonly IReadOnlyList<DetectionRule> Rules =
         [
             new("AWS_ACCESS_KEY",    AwsAccessKeyPattern(),     Severity.Critical),
@@ -44,6 +50,8 @@ namespace Argus.Services.Detection
             new("GENERIC_SECRET",    GenericSecretPattern(),    Severity.Medium),
             new("GITHUB_TOKEN",      GithubTokenPattern(),      Severity.Critical),
             new("AZURE_KEY",         AzureKeyPattern(),         Severity.Critical),
+            new("OPENAI_API_KEY",    OpenAiKeyPattern(),        Severity.Critical),
+            new("STRIPE_KEY",        StripeKeyPattern(),        Severity.Critical),
         ];
 
         public async Task<IReadOnlyList<SecretFinding>> DetectAsync(ScannedFile file)

@@ -16,8 +16,8 @@ namespace Argus.Services.Detection
         private const double HexEntropyThreshold   = 3.0;
         private const double MixedEntropyThreshold = 4.5;
 
-        // Extracts string literals ("..." of '...') en waarden na = of :
-        [GeneratedRegex(@"[""']([^""']{16,})[""']|[:=]\s*([A-Za-z0-9+/=_\-.]{16,})")]
+        // Extracts string literals ("..." of '...'), waarden na = of :, en tokens in comments (// of #)
+        [GeneratedRegex(@"[""']([^""']{16,})[""']|[:=]\s*([A-Za-z0-9+/=_\-.]{16,})|(?://|#)\s*([A-Za-z0-9+/=_\-.]{16,})")]
         private static partial Regex TokenExtractor();
 
         [GeneratedRegex(@"^[0-9a-fA-F]+$")]
@@ -43,10 +43,12 @@ namespace Argus.Services.Detection
 
                 foreach (Match match in TokenExtractor().Matches(line))
                 {
-                    // Groep 1 = string literal inhoud, Groep 2 = waarde na = of :
+                    // Groep 1 = string literal inhoud, Groep 2 = waarde na = of :, Groep 3 = token in comment
                     var token = match.Groups[1].Success
                         ? match.Groups[1].Value
-                        : match.Groups[2].Value;
+                        : match.Groups[2].Success
+                            ? match.Groups[2].Value
+                            : match.Groups[3].Value;
 
                     if (token.Length < MinTokenLength)
                         continue;

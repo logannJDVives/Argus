@@ -74,6 +74,7 @@ builder.Services.AddHttpClient("NuGet", client =>
 // CUSTOM SERVICES
 builder.Services.AddSingleton<HeuristicFilter>();
 builder.Services.AddScoped<ISecretDetector, RegexDetector>();
+builder.Services.AddScoped<ISecretDetector, EntropyDetector>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IProjectUploadService, ProjectUploadService>();
 builder.Services.AddScoped<IProjectFileScannerService, ProjectFileScannerService>();

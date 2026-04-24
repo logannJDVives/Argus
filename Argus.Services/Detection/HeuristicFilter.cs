@@ -61,8 +61,8 @@ namespace Argus.Services.Detection
 
         private static bool ShouldExclude(SecretFinding finding)
         {
-            // Commentaarregel
-            if (CommentPattern().IsMatch(finding.LineContent))
+            // Commentaarregel — hoge entropie in commentaar is nog steeds een risico
+            if (CommentPattern().IsMatch(finding.LineContent) && finding.DetectorType != DetectorType.Entropy)
                 return true;
 
             // Bekende placeholder
