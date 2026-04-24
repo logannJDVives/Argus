@@ -1,0 +1,352 @@
+@page "/orders/new"
+
+<PageTitle>Nieuwe Verhuur - VivesRental</PageTitle>
+
+<link href="css/pages/order-create.css" rel="stylesheet" />
+
+<h1>Nieuwe Verhuur</h1>
+
+@if (_error != null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+
+@if (_loading)
+{
+    <p>Laden...</p>
+}
+else
+{
+    <!-- Stap 1: Klant zoeken -->
+    <div class="order-summary">
+        <h4>Stap 1: Zoek Klant</h4>
+        <div class="search-section">
+            <div class="search-bar">
+                <input type="text" class="form-control" placeholder="Zoek op naam of email..." 
+                       @bind="_customerSearch" @bind:event="oninput" @onkeyup="FilterCustomers" />
+                @if (_selectedCustomer != null)
+                {
+                    <button class="btn btn-outline-secondary" @onclick="ClearCustomer">Wissen</button>
+                }
+            </div>
+            
+            @if (!string.IsNullOrWhiteSpace(_customerSearch) && _selectedCustomer == null)
+            {
+                <div class="search-results mt-2">
+                    @if (_filteredCustomers.Count == 0)
+                    {
+                        <p class="text-muted">Geen klanten gevonden.</p>
+                    }
+                    else
+                    {
+                        <div class="customer-results-list">
+                            @foreach (var customer in _filteredCustomers.Take(5))
+                            {
+                                <div class="customer-result-item" @onclick="() => SelectCustomer(customer)">
+                                    <strong>@customer.FirstName @customer.LastName</strong>
+                                    <span class="text-muted">@customer.Email</span>
+                                </div>
+                            }
+                            @if (_filteredCustomers.Count > 5)
+                            {
+                                <p class="text-muted mt-1">En @(_filteredCustomers.Count - 5) anderen...</p>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            @if (_selectedCustomer != null)
+            {
+                <div class="selected-customer mt-2">
+                    <strong>Geselecteerd:</strong> @_selectedCustomer.FirstName @_selectedCustomer.LastName 
+                    <span class="text-muted">(@_selectedCustomer.Email)</span>
+                    <a href="/customers/@_selectedCustomer.Id/history" class="btn btn-sm btn-outline-info ms-2">Verhuurgeschiedenis</a>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Winkelwagen -->
+    @if (_cart.Count > 0)
+    {
+        <div class="cart-section">
+            <h4>Winkelwagen (@_cart.Count producten)</h4>
+            <ul class="cart-items">
+                @foreach (var item in _cart)
+                {
+                    <li class="cart-item">
+                        <span>@item.Value.ProductName (x @item.Value.Quantity)</span>
+                        <div class="cart-actions">
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveFromCart(item.Key)">
+                                Verwijderen
+                            </button>
+                        </div>
+                    </li>
+                }
+            </ul>
+            <div class="cart-actions">
+                <button class="btn btn-success" @onclick="CreateOrder" disabled="@(!CanCreateOrder || _saving)">
+                    @if (_saving) { <span>Bezig...</span> } else { <span>Order Plaatsen</span> }
+                </button>
+                <button class="btn btn-outline-secondary" @onclick="ClearCart">Leegmaken</button>
+            </div>
+            @if (!CanCreateOrder)
+            {
+                <small class="text-muted">Zoek en selecteer eerst een klant om het order te plaatsen.</small>
+            }
+        </div>
+    }
+
+    <!-- Stap 2: Producten zoeken en selecteren -->
+    <div class="order-summary">
+        <h4>Stap 2: Zoek en Selecteer Producten</h4>
+        <div class="search-bar">
+            <input type="text" class="form-control" placeholder="Zoek product op naam..." 
+                   @bind="_productSearch" @bind:event="oninput" @onkeyup="FilterProducts" />
+            @if (!string.IsNullOrWhiteSpace(_productSearch))
+            {
+                <button class="btn btn-outline-secondary" @onclick="ClearProductSearch">Wissen</button>
+            }
+        </div>
+    </div>
+
+    <div class="products-grid">
+        @foreach (var product in _filteredProducts)
+        {
+            var available = product.NumberOfAvailableArticles;
+            var inCart = _cart.ContainsKey(product.Id) ? _cart[product.Id].Quantity : 0;
+            var remainingAvailable = available - inCart;
+
+            <div class="product-card @(remainingAvailable <= 0 ? "unavailable" : "")">
+                <h5>@product.Name</h5>
+                <p class="product-info">@(product.Description ?? "Geen beschrijving")</p>
+                <p class="product-info">
+                    <strong>Fabrikant:</strong> @(product.Manufacturer ?? "-")<br />
+                    <strong>Verhuurtermijn:</strong> @product.RentalExpiresAfterDays dagen
+                </p>
+                <p class="product-availability @(remainingAvailable > 0 ? "available" : "unavailable")">
+                    @remainingAvailable / @product.NumberOfArticles beschikbaar
+                    @if (inCart > 0)
+                    {
+                        <span class="text-primary">(@inCart in wagen)</span>
+                    }
+                </p>
+                <div class="product-actions">
+                    @if (remainingAvailable > 0)
+                    {
+                        <button class="btn btn-primary btn-sm" @onclick="() => AddToCart(product)">
+                            + Toevoegen
+                        </button>
+                    }
+                    else
+                    {
+                        <span class="text-muted">Niet beschikbaar</span>
+                    }
+                </div>
+            </div>
+        }
+        @if (_filteredProducts.Count == 0)
+        {
+            <p class="text-muted">Geen producten gevonden.</p>
+        }
+    </div>
+}
+
+@code {
+    [Inject] private IProductSdk ProductSdk { get; set; } = default!;
+    [Inject] private ICustomerSdk CustomerSdk { get; set; } = default!;
+    [Inject] private IArticleSdk ArticleSdk { get; set; } = default!;
+    [Inject] private IOrderSdk OrderSdk { get; set; } = default!;
+    [Inject] private IOrderLineSdk OrderLineSdk { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    private IList<ProductResult> _products = new List<ProductResult>();
+    private IList<ProductResult> _filteredProducts = new List<ProductResult>();
+    private IList<CustomerResult> _customers = new List<CustomerResult>();
+    private IList<CustomerResult> _filteredCustomers = new List<CustomerResult>();
+    private CustomerResult? _selectedCustomer;
+    private Dictionary<Guid, CartItem> _cart = new();
+    
+    private string? _customerSearch;
+    private string? _productSearch;
+    
+    private bool _loading = true;
+    private bool _saving;
+    private string? _error;
+
+    private bool CanCreateOrder => _selectedCustomer != null && _cart.Count > 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadData();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            _products = await ProductSdk.FindAsync();
+            _filteredProducts = _products.ToList();
+            _customers = await CustomerSdk.FindAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Fout bij laden: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void FilterCustomers()
+    {
+        if (string.IsNullOrWhiteSpace(_customerSearch))
+        {
+            _filteredCustomers = new List<CustomerResult>();
+            return;
+        }
+
+        var search = _customerSearch.ToLower();
+        _filteredCustomers = _customers
+            .Where(c => c.FirstName.ToLower().Contains(search) ||
+                       c.LastName.ToLower().Contains(search) ||
+                       $"{c.FirstName} {c.LastName}".ToLower().Contains(search) ||
+                       c.Email.ToLower().Contains(search))
+            .ToList();
+    }
+
+    private void SelectCustomer(CustomerResult customer)
+    {
+        _selectedCustomer = customer;
+        _customerSearch = $"{customer.FirstName} {customer.LastName}";
+        _filteredCustomers = new List<CustomerResult>();
+    }
+
+    private void ClearCustomer()
+    {
+        _selectedCustomer = null;
+        _customerSearch = null;
+        _filteredCustomers = new List<CustomerResult>();
+    }
+
+    private void FilterProducts()
+    {
+        if (string.IsNullOrWhiteSpace(_productSearch))
+        {
+            _filteredProducts = _products.ToList();
+        }
+        else
+        {
+            var search = _productSearch.ToLower();
+            _filteredProducts = _products
+                .Where(p => p.Name.ToLower().Contains(search) || 
+                           (p.Description?.ToLower().Contains(search) ?? false) ||
+                           (p.Manufacturer?.ToLower().Contains(search) ?? false))
+                .ToList();
+        }
+    }
+
+    private void ClearProductSearch()
+    {
+        _productSearch = null;
+        _filteredProducts = _products.ToList();
+    }
+
+    private void AddToCart(ProductResult product)
+    {
+        if (_cart.ContainsKey(product.Id))
+        {
+            _cart[product.Id].Quantity++;
+        }
+        else
+        {
+            _cart[product.Id] = new CartItem
+            {
+                ProductId = product.Id,
+                ProductName = product.Name,
+                Quantity = 1
+            };
+        }
+    }
+
+    private void RemoveFromCart(Guid productId)
+    {
+        _cart.Remove(productId);
+    }
+
+    private void ClearCart()
+    {
+        _cart.Clear();
+    }
+
+    private async Task CreateOrder()
+    {
+        if (!CanCreateOrder || _selectedCustomer == null) return;
+
+        _saving = true;
+        _error = null;
+
+        try
+        {
+            var orderRequest = new OrderRequest { CustomerId = _selectedCustomer.Id };
+            var order = await OrderSdk.CreateAsync(orderRequest);
+
+            if (order == null)
+            {
+                _error = "Kon order niet aanmaken.";
+                return;
+            }
+
+            foreach (var cartItem in _cart.Values)
+            {
+                for (int i = 0; i < cartItem.Quantity; i++)
+                {
+                    var article = await ArticleSdk.GetFirstAvailableAsync(cartItem.ProductId);
+                    if (article != null)
+                    {
+                        var rentRequest = new OrderLineRequest
+                        {
+                            OrderId = order.Id,
+                            ArticleId = article.Id
+                        };
+                        var success = await OrderLineSdk.RentAsync(rentRequest);
+                        if (!success)
+                        {
+                            _error = $"Kon artikel niet toevoegen aan order.";
+                        }
+                    }
+                    else
+                    {
+                        _error = $"Geen beschikbaar artikel gevonden voor {cartItem.ProductName}.";
+                    }
+                }
+            }
+
+            Navigation.NavigateTo($"/orders/{order.Id}");
+        }
+        catch (Exception ex)
+        {
+            _error = $"Fout bij aanmaken order: {ex.Message}";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private class CartItem
+    {
+        public Guid ProductId { get; set; }
+        public string ProductName { get; set; } = "";
+        public int Quantity { get; set; }
+    }
+}

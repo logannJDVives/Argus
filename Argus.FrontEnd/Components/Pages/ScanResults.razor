@@ -151,9 +151,20 @@ else if (_scan is not null)
                 <p class="mt-2 text-muted small">Loading SBOM…</p>
             </div>
         }
+        else if (_sbomError is not null)
+        {
+            <div class="alert alert-danger">@_sbomError</div>
+        }
         else if (_scan.ComponentCount == 0)
         {
             <div class="alert alert-info">No components found in this scan.</div>
+        }
+        else if (_components is null)
+        {
+            <div class="state-loading" style="padding:3rem 0">
+                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                <p class="mt-2 text-muted small">Loading SBOM…</p>
+            </div>
         }
         else if (_components is not null)
         {
@@ -266,6 +277,7 @@ else if (_scan is not null)
 
     private bool    _loading      = true;
     private bool    _sbomLoading  = false;
+    private string? _sbomError;
     private string? _errorMessage;
     private string  _activeTab    = "secrets";
 
@@ -329,11 +341,16 @@ else if (_scan is not null)
     private async Task LoadComponentsAsync(int page)
     {
         _sbomLoading = true;
+        _sbomError   = null;
         StateHasChanged();
         try
         {
             _currentComponentsPage = page;
             _components = await Api.GetComponentsAsync(ScanId, search: _componentSearch, page: page);
+        }
+        catch (Exception ex)
+        {
+            _sbomError = $"Failed to load SBOM: {ex.Message}";
         }
         finally
         {

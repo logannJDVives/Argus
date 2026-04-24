@@ -1,0 +1,354 @@
+@page "/articles"
+
+<PageTitle>Artikelbeheer - VivesRental</PageTitle>
+
+<link href="css/pages/articles.css" rel="stylesheet" />
+
+<h1>Artikelbeheer</h1>
+
+@if (_error != null)
+{
+    <div class="alert alert-danger alert-dismissible">
+        @_error
+        <button type="button" class="btn-close" @onclick="() => _error = null"></button>
+    </div>
+}
+
+@if (_loading)
+{
+    <p>Laden...</p>
+}
+else
+{
+    <div class="toolbar">
+        <input type="text" class="form-control" placeholder="Zoeken..." 
+               @bind="_searchText" @bind:event="oninput" @onkeyup="ApplyFilter" style="max-width: 300px;" />
+        <button class="btn btn-primary" @onclick="OpenAddModal">+ Nieuw Product</button>
+    </div>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Product</th>
+                <th>Fabrikant</th>
+                <th>Dagen</th>
+                <th>Artikelen</th>
+                <th>Beschikbaar</th>
+                <th>Acties</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var product in _filteredProducts)
+            {
+                var isExpanded = _expandedProductId == product.Id;
+                var productArticles = _articles.Where(a => a.ProductId == product.Id).ToList();
+                
+                <tr>
+                    <td>
+                        <button class="btn btn-sm btn-link" @onclick="() => ToggleExpand(product.Id)">
+                            @(isExpanded ? "?" : "?")
+                        </button>
+                    </td>
+                    <td>@product.Name</td>
+                    <td>@product.Manufacturer</td>
+                    <td>@product.RentalExpiresAfterDays</td>
+                    <td>@product.NumberOfArticles</td>
+                    <td>@product.NumberOfAvailableArticles</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenEditModal(product)">Bewerken</button>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteProduct(product.Id)">Verwijderen</button>
+                    </td>
+                </tr>
+                
+                @if (isExpanded)
+                {
+                    <tr>
+                        <td colspan="7" class="expanded-row">
+                            @if (productArticles.Count == 0)
+                            {
+                                <p class="text-muted">Geen artikelen.</p>
+                            }
+                            else
+                            {
+                                <table class="table table-sm mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Artikel ID</th>
+                                            <th>Status</th>
+                                            <th>Acties</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var article in productArticles)
+                                        {
+                                            <tr>
+                                                <td><code>@article.Id.ToString()[..8]...</code></td>
+                                                <td>
+                                                    <span class="badge @GetStatusBadgeClass(article.Status)">
+                                                        @GetStatusText(article.Status)
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <select class="form-select form-select-sm d-inline-block w-auto" 
+                                                            value="@article.Status" 
+                                                            @onchange="e => UpdateArticleStatus(article.Id, e)">
+                                                        <option value="@ArticleStatus.Normal">Beschikbaar</option>
+                                                        <option value="@ArticleStatus.InRepair">In reparatie</option>
+                                                        <option value="@ArticleStatus.Broken">Kapot</option>
+                                                        <option value="@ArticleStatus.Lost">Verloren</option>
+                                                        <option value="@ArticleStatus.Destroyed">Vernietigd</option>
+                                                    </select>
+                                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteArticle(article.Id)">×</button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+}
+
+<!-- Modal: Nieuw/Bewerk Product -->
+@if (_showModal)
+{
+    <div class="modal-backdrop" @onclick="CloseModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>@(_editingProduct == null ? "Nieuw Product" : "Product Bewerken")</h3>
+                <button class="modal-close" @onclick="CloseModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Naam *</label>
+                    <input type="text" class="form-control" @bind="_request.Name" />
+                </div>
+                <div class="form-group">
+                    <label>Fabrikant</label>
+                    <input type="text" class="form-control" @bind="_request.Manufacturer" />
+                </div>
+                <div class="form-group">
+                    <label>Uitgever</label>
+                    <input type="text" class="form-control" @bind="_request.Publisher" />
+                </div>
+                <div class="form-group">
+                    <label>Beschrijving</label>
+                    <textarea class="form-control" @bind="_request.Description" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Verhuurtermijn (dagen) *</label>
+                    <input type="number" class="form-control" @bind="_request.RentalExpiresAfterDays" min="1" />
+                </div>
+                <div class="form-group">
+                    <label>Aantal artikelen @(_editingProduct != null ? $"(huidig: {_editingProduct.NumberOfArticles})" : "")</label>
+                    <input type="number" class="form-control" @bind="_articleCount" min="0" />
+                    @if (_editingProduct != null)
+                    {
+                        <small class="text-muted">Vul een hoger getal in om artikelen toe te voegen.</small>
+                    }
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModal">Annuleren</button>
+                <button class="btn btn-primary" @onclick="SaveProduct" disabled="@(string.IsNullOrWhiteSpace(_request.Name))">
+                    Opslaan
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Inject] private IProductSdk ProductSdk { get; set; } = default!;
+    [Inject] private IArticleSdk ArticleSdk { get; set; } = default!;
+
+    private IList<ProductResult> _products = [];
+    private IList<ProductResult> _filteredProducts = [];
+    private IList<ArticleResult> _articles = [];
+    private string _searchText = "";
+    private bool _loading = true;
+    private string? _error;
+    private Guid? _expandedProductId;
+
+    private bool _showModal;
+    private ProductResult? _editingProduct;
+    private ProductRequest _request = new() { RentalExpiresAfterDays = 14 };
+    private int _articleCount = 1;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadData();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        try
+        {
+            _products = await ProductSdk.FindAsync();
+            _articles = await ArticleSdk.FindAsync();
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        _filteredProducts = string.IsNullOrWhiteSpace(_searchText)
+            ? _products.OrderBy(p => p.Name).ToList()
+            : _products.Where(p => 
+                p.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                (p.Manufacturer?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false))
+              .OrderBy(p => p.Name).ToList();
+    }
+
+    private void ToggleExpand(Guid productId)
+    {
+        _expandedProductId = _expandedProductId == productId ? null : productId;
+    }
+
+    private void CloseModal()
+    {
+        _showModal = false;
+        _editingProduct = null;
+    }
+
+    private void OpenAddModal()
+    {
+        _request = new ProductRequest { RentalExpiresAfterDays = 14 };
+        _articleCount = 1;
+        _editingProduct = null;
+        _showModal = true;
+    }
+
+    private void OpenEditModal(ProductResult product)
+    {
+        _editingProduct = product;
+        _request = new ProductRequest
+        {
+            Name = product.Name,
+            Manufacturer = product.Manufacturer,
+            Publisher = product.Publisher,
+            Description = product.Description,
+            RentalExpiresAfterDays = product.RentalExpiresAfterDays
+        };
+        _articleCount = product.NumberOfArticles;
+        _showModal = true;
+    }
+
+    private async Task SaveProduct()
+    {
+        try
+        {
+            if (_editingProduct == null)
+            {
+                // create
+                var product = await ProductSdk.CreateAsync(_request);
+                if (product != null && _articleCount > 0)
+                {
+                    await ProductSdk.GenerateArticlesAsync(product.Id, _articleCount);
+                }
+            }
+            else
+            {
+                // update
+                await ProductSdk.UpdateAsync(_editingProduct.Id, _request);
+                
+                // update aantal artikelen
+                var toAdd = _articleCount - _editingProduct.NumberOfArticles;
+                if (toAdd > 0)
+                {
+                    await ProductSdk.GenerateArticlesAsync(_editingProduct.Id, toAdd);
+                }
+            }
+            CloseModal();
+            await LoadData();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private async Task DeleteProduct(Guid id)
+    {
+        try
+        {
+            await ProductSdk.DeleteAsync(id);
+            await LoadData();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private async Task UpdateArticleStatus(Guid articleId, ChangeEventArgs e)
+    {
+        if (Enum.TryParse<ArticleStatus>(e.Value?.ToString(), out var status))
+        {
+            try
+            {
+                await ArticleSdk.UpdateStatusAsync(articleId, status);
+                await LoadData();
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                _error = ex.Message;
+            }
+        }
+    }
+    //Delete
+    private async Task DeleteArticle(Guid id)
+    {
+        try
+        {
+            await ArticleSdk.DeleteAsync(id);
+            await LoadData();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private string GetStatusBadgeClass(ArticleStatus status) => status switch
+    {
+        ArticleStatus.Normal => "bg-success",
+        ArticleStatus.InRepair => "bg-warning text-dark",
+        ArticleStatus.Broken => "bg-danger",
+        ArticleStatus.Lost => "bg-secondary",
+        ArticleStatus.Destroyed => "bg-dark",
+        _ => "bg-secondary"
+    };
+
+    private string GetStatusText(ArticleStatus status) => status switch
+    {
+        ArticleStatus.Normal => "Beschikbaar",
+        ArticleStatus.InRepair => "In reparatie",
+        ArticleStatus.Broken => "Kapot",
+        ArticleStatus.Lost => "Verloren",
+        ArticleStatus.Destroyed => "Vernietigd",
+        _ => "Onbekend"
+    };
+}

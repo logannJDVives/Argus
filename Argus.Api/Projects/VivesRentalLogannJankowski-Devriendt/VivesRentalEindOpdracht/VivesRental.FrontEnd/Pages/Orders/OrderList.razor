@@ -1,0 +1,212 @@
+@page "/orders"
+
+<PageTitle>Bestellingen - VivesRental</PageTitle>
+
+<link href="css/pages/orders.css" rel="stylesheet" />
+
+<h1>Bestellingen</h1>
+
+@if (_error != null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+
+@if (_loading)
+{
+    <p>Laden...</p>
+}
+else
+{
+    <!-- Statistieken -->
+    <div class="stats-bar">
+        <div class="stat-card">
+            <h4>@_orders.Count</h4>
+            <p>Totaal</p>
+        </div>
+        <div class="stat-card active">
+            <h4>@_orders.Count(o => !o.ReturnedAt.HasValue && GetOrderStatus(o) == "active")</h4>
+            <p>Actief</p>
+        </div>
+        <div class="stat-card overdue">
+            <h4>@_orders.Count(o => GetOrderStatus(o) == "overdue")</h4>
+            <p>Te laat</p>
+        </div>
+        <div class="stat-card returned">
+            <h4>@_orders.Count(o => o.ReturnedAt.HasValue)</h4>
+            <p>Teruggebracht</p>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <div class="filter-section">
+            <label>Filter:</label>
+            <select class="form-select form-select-sm" @bind="_statusFilter" @bind:after="ApplyFilter">
+                <option value="all">Alle bestellingen</option>
+                <option value="active">Actief</option>
+                <option value="overdue">Te laat</option>
+                <option value="returned">Teruggebracht</option>
+            </select>
+        </div>
+        <div class="toolbar-actions">
+            <a href="/orders/new" class="btn btn-primary">+ Nieuwe Verhuur</a>
+        </div>
+    </div>
+
+    <!-- Orders lijst -->
+    @if (_filteredOrders.Count == 0)
+    {
+        <p class="text-muted">Geen bestellingen gevonden.</p>
+    }
+    else
+    {
+        <div class="orders-list">
+            @foreach (var order in _filteredOrders.OrderByDescending(o => o.CreatedAt))
+            {
+                var status = GetOrderStatus(order);
+
+                <div class="order-card @status">
+                    <div class="order-main-info">
+                        <span class="order-id" title="@order.Id.ToString()">Order #@order.Id.ToString()</span>
+                        <span class="order-customer" title="@order.CustomerFirstName @order.CustomerLastName">@order.CustomerFirstName @order.CustomerLastName</span>
+                        <span class="text-muted" title="@order.CustomerEmail">@order.CustomerEmail</span>
+                    </div>
+
+                    <div class="order-meta-item">
+                        <label>Aangemaakt</label>
+                        <span>@order.CreatedAt.ToString("dd-MM-yyyy")</span>
+                    </div>
+                    
+                    <div class="order-meta-item">
+                        <label>Items</label>
+                        <span>@order.NumberOfOrderLines</span>
+                    </div>
+                    
+                    <div class="order-meta-item">
+                        <label>Status</label>
+                        @if (status == "returned")
+                        {
+                            <span class="badge bg-success">Teruggebracht</span>
+                        }
+                        else if (status == "overdue")
+                        {
+                            <span class="badge bg-danger">Te laat</span>
+                        }
+                        else if (status == "partial")
+                        {
+                            <span class="badge bg-warning text-dark">Gedeeltelijk</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-primary">Actief</span>
+                        }
+                    </div>
+
+                    <div class="order-actions">
+                        <a href="/orders/@order.Id" class="btn btn-sm btn-outline-primary">Details</a>
+                        @if (!order.ReturnedAt.HasValue)
+                        {
+                            <button class="btn btn-sm btn-outline-success" @onclick="() => ReturnOrder(order.Id)" disabled="@_processing">
+                                Terug
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    [Inject] private IOrderSdk OrderSdk { get; set; } = default!;
+
+    private IList<OrderResult> _orders = new List<OrderResult>();
+    private IList<OrderResult> _filteredOrders = new List<OrderResult>();
+    private string _statusFilter = "all";
+    private bool _loading = true;
+    private bool _processing;
+    private string? _error;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadData();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            _orders = await OrderSdk.FindAsync();
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Fout bij laden: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        _filteredOrders = _statusFilter switch
+        {
+            "active" => _orders.Where(o => !o.ReturnedAt.HasValue && GetOrderStatus(o) == "active").ToList(),
+            "overdue" => _orders.Where(o => GetOrderStatus(o) == "overdue").ToList(),
+            "returned" => _orders.Where(o => o.ReturnedAt.HasValue).ToList(),
+            _ => _orders.ToList()
+        };
+    }
+
+    private string GetOrderStatus(OrderResult order)
+    {
+        if (order.ReturnedAt.HasValue)
+        {
+            return "returned";
+        }
+        
+        // Check of order te laat is (simpele check: order ouder dan 30 dagen en niet teruggebracht)
+        var daysSinceCreation = (DateTime.Now - order.CreatedAt).Days;
+        if (daysSinceCreation > 30 && !order.ReturnedAt.HasValue)
+        {
+            return "overdue";
+        }
+
+        return "active";
+    }
+
+    private async Task ReturnOrder(Guid orderId)
+    {
+        _processing = true;
+        try
+        {
+            var success = await OrderSdk.ReturnAsync(orderId, DateTime.Now);
+            if (success)
+            {
+                await LoadData();
+                StateHasChanged();
+            }
+            else
+            {
+                _error = "Kon order niet terugbrengen.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Fout: {ex.Message}";
+        }
+        finally
+        {
+            _processing = false;
+        }
+    }
+}

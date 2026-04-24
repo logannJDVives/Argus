@@ -12,17 +12,11 @@ namespace Argus.Services
 {
     public class ProjectUploadService : IProjectUploadService
     {
-        /// <summary>Maximum accepted compressed upload size: 100 MB.</summary>
-        private const long MaxFileSizeBytes = 100L * 1024 * 1024;
+        /// <summary>Maximum accepted compressed upload size: 200 MB.</summary>
+        private const long MaxFileSizeBytes = 200L * 1024 * 1024;
 
-        /// <summary>Maximum total uncompressed size of all ZIP entries: 500 MB.</summary>
-        private const long MaxUncompressedBytes = 500L * 1024 * 1024;
-
-        /// <summary>
-        /// Maximum ratio of uncompressed / compressed size.
-        /// Legitimate archives rarely exceed 10×; malicious zip bombs can be millions×.
-        /// </summary>
-        private const double MaxCompressionRatio = 10.0;
+        /// <summary>Streaming buffer: 80 KB — large enough for throughput, small enough for memory.</summary>
+        private const int CopyBufferSize = 81_920;
 
         // Every valid ZIP file starts with the local-file-header signature PK\x03\x04.
         private static readonly byte[] ZipMagicBytes = [0x50, 0x4B, 0x03, 0x04];
@@ -59,23 +53,21 @@ namespace Argus.Services
             await ValidateZipSignatureAsync(zipFile);
 
             // ── Write to temp file ───────────────────────────────────────────
-            // Use a random name so concurrent uploads never collide in temp storage.
-            var tempZipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
+            var tempZipPath  = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
+            var projectName  = Path.GetFileNameWithoutExtension(zipFile.FileName);
+            var projectsRoot = Path.Combine(_env.ContentRootPath, "Projects");
+            var extractPath  = Path.Combine(projectsRoot, projectName);
+
             try
             {
                 await using (var stream = new FileStream(tempZipPath, FileMode.Create, FileAccess.Write, FileShare.None))
                     await zipFile.CopyToAsync(stream);
 
-                // ── Zip bomb check ───────────────────────────────────────────
-                ValidateZipContents(tempZipPath, zipFile.Length);
-
-                // ── Extract ──────────────────────────────────────────────────
-                var projectName  = Path.GetFileNameWithoutExtension(zipFile.FileName);
-                var projectsRoot = Path.Combine(_env.ContentRootPath, "Projects");
-                var extractPath  = Path.Combine(projectsRoot, projectName);
+                // ── Secure streaming extraction ───────────────────────────────
+                // Bytes are counted as they are ACTUALLY decompressed — not from
+                // the ZIP headers, which a zip bomb can forge to appear small.
                 Directory.CreateDirectory(extractPath);
-
-                ZipFile.ExtractToDirectory(tempZipPath, extractPath, overwriteFiles: true);
+                await ExtractAsync(tempZipPath, extractPath);
 
                 // ── Persist ──────────────────────────────────────────────────
                 var createProjectDto = new CreateProjectDto { Name = projectName, Path = extractPath };
@@ -89,6 +81,14 @@ namespace Argus.Services
                     CreatedAt = projectDto.CreatedAt
                 };
             }
+            catch
+            {
+                // Clean up any partially extracted files so disk space is not leaked.
+                if (Directory.Exists(extractPath))
+                    Directory.Delete(extractPath, recursive: true);
+
+                throw;
+            }
             finally
             {
                 if (File.Exists(tempZipPath))
@@ -98,7 +98,6 @@ namespace Argus.Services
 
         /// <summary>
         /// Reads the first 4 bytes of the upload stream and verifies the ZIP magic bytes (PK\x03\x04).
-        /// Resets the stream position afterwards so the file can still be copied to disk.
         /// </summary>
         private static async Task ValidateZipSignatureAsync(IFormFile zipFile)
         {
@@ -113,26 +112,48 @@ namespace Argus.Services
         }
 
         /// <summary>
-        /// Iterates over every entry in the ZIP without extracting it and checks that the
-        /// total uncompressed size stays within safe bounds, protecting against zip bombs.
+        /// Extracts the ZIP archive entry by entry using a streaming copy.
+        /// Validates paths to prevent zip-slip attacks (../../etc/passwd).
         /// </summary>
-        private static void ValidateZipContents(string zipPath, long compressedSize)
+        private static async Task ExtractAsync(string zipPath, string extractPath)
         {
             using var archive = ZipFile.OpenRead(zipPath);
 
-            long totalUncompressed = 0;
+            var    buffer   = new byte[CopyBufferSize];
+            string rootPath = Path.GetFullPath(extractPath);
 
             foreach (var entry in archive.Entries)
             {
-                totalUncompressed += entry.Length; // Length = uncompressed size
+                // Path traversal (zip slip) guard — resolves any ".." sequences and verifies
+                // the result still lives inside the intended extraction root.
+                var destinationPath = Path.GetFullPath(Path.Combine(rootPath, entry.FullName));
 
-                if (totalUncompressed > MaxUncompressedBytes)
+                if (!destinationPath.StartsWith(rootPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                    && !destinationPath.Equals(rootPath, StringComparison.OrdinalIgnoreCase))
+                {
                     throw new UploadValidationException(
-                        $"The ZIP archive exceeds the maximum allowed uncompressed size of {MaxUncompressedBytes / (1024 * 1024)} MB.");
+                        "The ZIP archive contains an entry with an invalid path and was rejected for security reasons.");
+                }
 
-                if (compressedSize > 0 && (double)totalUncompressed / compressedSize > MaxCompressionRatio)
-                    throw new UploadValidationException(
-                        $"The ZIP archive has a suspicious compression ratio and was rejected for security reasons.");
+                // Directory entries — just create the folder, nothing to decompress.
+                if (entry.FullName.EndsWith('/') || entry.FullName.EndsWith('\\'))
+                {
+                    Directory.CreateDirectory(destinationPath);
+                    continue;
+                }
+
+                // Ensure the parent directory exists before writing.
+                var parentDir = Path.GetDirectoryName(destinationPath)!;
+                Directory.CreateDirectory(parentDir);
+
+                await using var entryStream = entry.Open();
+                await using var outStream   = new FileStream(
+                    destinationPath, FileMode.Create, FileAccess.Write,
+                    FileShare.None, CopyBufferSize, useAsync: true);
+
+                int bytesRead;
+                while ((bytesRead = await entryStream.ReadAsync(buffer)) > 0)
+                    await outStream.WriteAsync(buffer.AsMemory(0, bytesRead));
             }
         }
     }

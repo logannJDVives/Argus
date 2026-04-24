@@ -1,0 +1,116 @@
+@page "/customers"
+
+<PageTitle>Klantenbeheer - VivesRental</PageTitle>
+
+<link href="css/pages/customers.css" rel="stylesheet" />
+
+<h1>Klantenbeheer</h1>
+
+<div class="toolbar">
+    <a href="/customers/create" class="btn btn-primary">+ Nieuwe Klant</a>
+</div>
+
+@if (_loading)
+{
+    <p>Laden...</p>
+}
+else if (_error != null)
+{
+    <div class="alert alert-danger">@_error</div>
+    <button class="btn btn-secondary" @onclick="LoadCustomers">Opnieuw proberen</button>
+}
+else if (_customers.Count == 0)
+{
+    <p>Geen klanten gevonden.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Voornaam</th>
+                <th>Achternaam</th>
+                <th>Email</th>
+                <th>Telefoon</th>
+                <th>Orders</th>
+                <th>Acties</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var customer in _customers)
+            {
+                <tr>
+                    <td>@customer.FirstName</td>
+                    <td>@customer.LastName</td>
+                    <td>@customer.Email</td>
+                    <td>@customer.PhoneNumber</td>
+                    <td>@customer.NumberOfOrders (@customer.NumberOfPendingOrders openstaand)</td>
+                    <td>
+                        <a href="/customers/@customer.Id/history" class="btn btn-sm btn-outline-info">Geschiedenis</a>
+                        <a href="/customers/edit/@customer.Id" class="btn btn-sm btn-outline-primary">Bewerken</a>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCustomer(customer.Id)">Verwijderen</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Inject] private ICustomerSdk CustomerSdk { get; set; } = default!;
+
+    private IList<CustomerResult> _customers = new List<CustomerResult>();
+    private bool _loading = true;
+    private string? _error;
+    private bool _initialized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_initialized)
+        {
+            _initialized = true;
+            await LoadCustomers();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadCustomers()
+    {
+        _loading = true;
+        _error = null;
+        StateHasChanged();
+
+        try
+        {
+            _customers = await CustomerSdk.FindAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Fout bij laden van klanten: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task DeleteCustomer(Guid id)
+    {
+        try
+        {
+            var success = await CustomerSdk.DeleteAsync(id);
+            if (success)
+            {
+                await LoadCustomers();
+            }
+            else
+            {
+                _error = "Kon klant niet verwijderen.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Fout bij verwijderen: {ex.Message}";
+        }
+    }
+}

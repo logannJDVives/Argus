@@ -123,24 +123,32 @@ namespace Argus.Services
 
                 foreach (var csproj in csprojFiles)
                 {
-                    var packages = await _csprojParser.ParseAsync(csproj.FullPath);
-
-                    foreach (var pkg in packages)
+                    try
                     {
-                        components.Add(new SoftwareComponent
+                        var packages = await _csprojParser.ParseAsync(csproj.FullPath);
+
+                        foreach (var pkg in packages)
                         {
-                            Id           = Guid.NewGuid(),
-                            ScanRunId    = scanRun.Id,
-                            Name         = pkg.Name,
-                            Version      = pkg.Version,
-                            Type         = "NuGet",
-                            IsTransitive = pkg.IsTransitive,
-                            License      = string.Empty,
-                            PackageUrl   = $"pkg:nuget/{pkg.Name}@{pkg.Version}",
-                            Description  = string.Empty,
-                            Homepage     = string.Empty,
-                            PublisherUrl = string.Empty
-                        });
+                            components.Add(new SoftwareComponent
+                            {
+                                Id           = Guid.NewGuid(),
+                                ScanRunId    = scanRun.Id,
+                                Name         = pkg.Name,
+                                Version      = pkg.Version,
+                                Type         = "NuGet",
+                                IsTransitive = pkg.IsTransitive,
+                                License      = string.Empty,
+                                PackageUrl   = $"pkg:nuget/{pkg.Name}@{pkg.Version}",
+                                Description  = string.Empty,
+                                Homepage     = string.Empty,
+                                PublisherUrl = string.Empty
+                            });
+                        }
+                    }
+                    catch
+                    {
+                        // Skip csproj files that fail to parse so one bad file
+                        // never aborts the entire component scan.
                     }
                 }
 

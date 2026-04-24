@@ -1,0 +1,9 @@
+﻿#!/bin/bash
+# Fake private key for testing only â€” completely invalid
+
+PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEA0Z3VS5JJcds3xHn/ygWep4PAtEsHAQcgAkKbrCz6RbWsTLcq
+FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE
+-----END RSA PRIVATE KEY-----"
+
+echo "Deploying..."

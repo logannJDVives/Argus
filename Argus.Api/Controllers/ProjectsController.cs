@@ -111,8 +111,8 @@ namespace Argus.API.Controllers
         /// </summary>
         [HttpPost("upload")]
         [Consumes("multipart/form-data")]
-        [RequestSizeLimit(100_000_000)] // 100 MB — Kestrel default is 28.6 MB
-        [RequestFormLimits(MultipartBodyLengthLimit = 100_000_000)]
+        [RequestSizeLimit(200_000_000)] // 200 MB — Kestrel default is 28.6 MB
+        [RequestFormLimits(MultipartBodyLengthLimit = 200_000_000)]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<UploadProjectResponseDto>> UploadProject(IFormFile file, [FromForm] string projectName = null)

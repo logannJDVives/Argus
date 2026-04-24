@@ -1,0 +1,95 @@
+@page "/catalog"
+
+<PageTitle>Catalogus - VivesRental</PageTitle>
+
+<link href="css/pages/catalog.css" rel="stylesheet" />
+
+<h1>Productcatalogus</h1>
+<p class="text-muted">Bekijk onze beschikbare producten</p>
+
+@if (_error != null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+
+@if (_loading)
+{
+    <p>Laden...</p>
+}
+else
+{
+    <div class="toolbar">
+        <input type="text" class="form-control" placeholder="Zoeken..." 
+               @bind="_searchText" @bind:event="oninput" @onkeyup="ApplyFilter" style="max-width: 300px;" />
+    </div>
+
+    <div class="product-grid">
+        @foreach (var product in _filteredProducts)
+        {
+            <div class="product-card">
+                <h4>@product.Name</h4>
+                <p class="product-manufacturer">@product.Manufacturer</p>
+                <p class="product-description">@(product.Description ?? "Geen beschrijving")</p>
+                <div class="product-footer">
+                    <span class="badge @(product.NumberOfAvailableArticles > 0 ? "bg-success" : "bg-danger")">
+                        @product.NumberOfAvailableArticles beschikbaar
+                    </span>
+                    <span class="text-muted">@product.RentalExpiresAfterDays dagen verhuur</span>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (_filteredProducts.Count == 0)
+    {
+        <p class="text-muted text-center mt-4">Geen producten gevonden.</p>
+    }
+}
+
+@code {
+    [Inject] private IProductSdk ProductSdk { get; set; } = default!;
+
+    private IList<ProductResult> _products = [];
+    private IList<ProductResult> _filteredProducts = [];
+    private string _searchText = "";
+    private bool _loading = true;
+    private string? _error;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadData();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        try
+        {
+            _products = await ProductSdk.FindAsync();
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        _filteredProducts = string.IsNullOrWhiteSpace(_searchText)
+            ? _products.OrderBy(p => p.Name).ToList()
+            : _products.Where(p => 
+                p.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                (p.Manufacturer?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (p.Description?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false))
+              .OrderBy(p => p.Name).ToList();
+    }
+}
