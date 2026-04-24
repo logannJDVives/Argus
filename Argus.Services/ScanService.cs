@@ -109,6 +109,8 @@ namespace Argus.Services
                 var uniqueSecrets = detectedSecrets
                     .GroupBy(s => s.Hash)
                     .Select(g => g.First())
+                    .GroupBy(s => new { s.FilePath, s.LineNumber })
+                    .Select(g => g.First())
                     .ToList();
 
                 if (uniqueSecrets.Count > 0)
