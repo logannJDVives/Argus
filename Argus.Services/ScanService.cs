@@ -82,6 +82,10 @@ namespace Argus.Services
 
                         foreach (var finding in filtered)
                         {
+                            // Skip findings with empty/null values to prevent duplicate hash issues
+                            if (string.IsNullOrWhiteSpace(finding.MatchedValue))
+                                continue;
+
                             detectedSecrets.Add(new DetectedSecret
                             {
                                 Id              = Guid.NewGuid(),
@@ -106,8 +110,10 @@ namespace Argus.Services
                     }
                 }
 
+                // Deduplicate by Hash only (one secret per unique value per scan)
+                // This aligns with IX_DetectedSecrets_ScanRunId_Hash constraint
                 var uniqueSecrets = detectedSecrets
-                    .GroupBy(s => s.Hash)
+                    .GroupBy(s => new { s.ScanRunId, s.Hash })
                     .Select(g => g.First())
                     .ToList();
 
