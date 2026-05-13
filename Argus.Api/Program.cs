@@ -71,6 +71,14 @@ builder.Services.AddHttpClient("NuGet", client =>
     client.Timeout = TimeSpan.FromSeconds(15);
 });
 
+// OSV HTTP CLIENT (used for vulnerability scanning)
+builder.Services.AddHttpClient("OSV", client =>
+{
+    client.BaseAddress = new Uri("https://api.osv.dev/");
+    client.DefaultRequestHeaders.Add("User-Agent", "Argus-Scanner/1.0");
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
 // CUSTOM SERVICES
 builder.Services.AddSingleton<HeuristicFilter>();
 builder.Services.AddScoped<ISecretDetector, RegexDetector>();
@@ -84,6 +92,7 @@ builder.Services.AddScoped<ISecretService, SecretService>();
 builder.Services.AddScoped<IComponentService, ComponentService>();
 builder.Services.AddScoped<ICycloneDxExportService, CycloneDxExportService>(); // cycloneDx injection
 builder.Services.AddScoped<INuGetEnricher, NuGetEnricher>();
+builder.Services.AddScoped<IOsvVulnerabilityService, OsvVulnerabilityService>();
 
 var app = builder.Build();
 

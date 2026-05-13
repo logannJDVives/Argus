@@ -167,8 +167,11 @@ namespace Argus.Data
                 .HasIndex(v => v.SoftwareComponentId);
 
             modelBuilder.Entity<Vulnerability>()
-                .HasIndex(v => v.CveId)
+                .HasIndex(v => new { v.SoftwareComponentId, v.CveId })
                 .IsUnique();
+
+            modelBuilder.Entity<Vulnerability>()
+                .HasIndex(v => v.CveId);
 
             modelBuilder.Entity<Vulnerability>()
                 .HasIndex(v => v.Severity);

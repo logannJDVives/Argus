@@ -20,6 +20,7 @@ namespace Argus.Services
         private readonly ICsprojParser _csprojParser;
         private readonly HeuristicFilter _filter;
         private readonly INuGetEnricher _nuGetEnricher;
+        private readonly IOsvVulnerabilityService _osvService;
 
         public ScanService(
             ArgusDbContext context,
@@ -27,7 +28,8 @@ namespace Argus.Services
             IEnumerable<ISecretDetector> detectors,
             ICsprojParser csprojParser,
             HeuristicFilter filter,
-            INuGetEnricher nuGetEnricher)
+            INuGetEnricher nuGetEnricher,
+            IOsvVulnerabilityService osvService)
         {
             _context       = context       ?? throw new ArgumentNullException(nameof(context));
             _scanner       = scanner       ?? throw new ArgumentNullException(nameof(scanner));
@@ -35,6 +37,7 @@ namespace Argus.Services
             _csprojParser  = csprojParser  ?? throw new ArgumentNullException(nameof(csprojParser));
             _filter        = filter        ?? throw new ArgumentNullException(nameof(filter));
             _nuGetEnricher = nuGetEnricher ?? throw new ArgumentNullException(nameof(nuGetEnricher));
+            _osvService    = osvService    ?? throw new ArgumentNullException(nameof(osvService));
         }
 
         public async Task<ScanRunDto> StartScanAsync(Guid projectId)
@@ -186,6 +189,50 @@ namespace Argus.Services
                     }
                 });
                 await Task.WhenAll(enrichTasks);
+
+                // ── Vulnerability scanning ──────────────────────────────────
+                // Check each component for known vulnerabilities using OSV.dev
+                var vulnSemaphore = new System.Threading.SemaphoreSlim(5); // Max 5 concurrent requests
+                var vulnTasks = uniqueComponents.Select(async component =>
+                {
+                    await vulnSemaphore.WaitAsync();
+                    try
+                    {
+                        var vulnerabilities = await _osvService.CheckPackageAsync(component.Name, component.Version);
+
+                        if (vulnerabilities.Count > 0)
+                        {
+                            component.HasKnownVulnerabilities = true;
+
+                            // Create Vulnerability records
+                            foreach (var vuln in vulnerabilities)
+                            {
+                                _context.Vulnerabilities.Add(new Vulnerability
+                                {
+                                    Id = Guid.NewGuid(),
+                                    SoftwareComponentId = component.Id,
+                                    CveId = vuln.Id,
+                                    Description = vuln.Summary,
+                                    Severity = Enum.TryParse<Severity>(vuln.Severity, true, out var sev) ? sev : Severity.Medium,
+                                    CvssScore = string.Empty,
+                                    CvssVector = string.Empty,
+                                    PublishedDate = vuln.PublishedDate,
+                                    ReferenceUrl = vuln.References?.FirstOrDefault() ?? string.Empty,
+                                    Source = "OSV"
+                                });
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Skip vulnerability check if OSV fails for this package
+                    }
+                    finally
+                    {
+                        vulnSemaphore.Release();
+                    }
+                });
+                await Task.WhenAll(vulnTasks);
 
                 if (uniqueComponents.Count > 0)
                     _context.SoftwareComponents.AddRange(uniqueComponents);
