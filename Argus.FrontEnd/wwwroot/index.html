@@ -25,6 +25,11 @@
 
     <script src="fileHelper.js"></script>
     <script src="_framework/blazor.webview.js" autostart="false"></script>
+    <script>
+        Blazor.start({
+            jsInteropDefaultCallTimeout: 180000  // 3 minutes timeout for JS interop (file picker)
+        });
+    </script>
 
 </body>
 

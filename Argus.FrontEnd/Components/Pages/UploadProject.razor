@@ -1,8 +1,10 @@
 @page "/upload"
 @using Argus.Sdk
 @using System.IO
+@using Argus.FrontEnd.Services
 @inject ArgusApiClient ApiClient
 @inject NavigationManager Nav
+@inject IFilePickerService FilePickerService
 
 <div class="page-header mb-5">
     <h2 class="mb-1">Upload project</h2>
@@ -37,13 +39,8 @@
                 <label class="form-label" for="zipFile">
                     ZIP file <span class="text-muted fw-normal">(max 200 MB)</span>
                 </label>
-                <div class="upload-dropzone @(fileBytes != null ? "upload-dropzone--selected" : "")">
-                    <InputFile id="zipFile"
-                               OnChange="HandleFileSelected"
-                               accept=".zip"
-                               disabled="@isLoading"
-                               class="upload-file-input" />
-                    @if (fileBytes != null)
+                <div class="upload-dropzone @(selectedFile != null ? "upload-dropzone--selected" : "")" @onclick="HandleSelectFile" style="cursor: pointer;">
+                    @if (selectedFile != null)
                     {
                         <div class="upload-file-info">
                             <span class="upload-file-icon">📦</span>
@@ -70,7 +67,7 @@
 
             <button type="submit"
                     class="btn btn-primary w-100"
-                    disabled="@(fileBytes == null || string.IsNullOrWhiteSpace(projectName) || isLoading)">
+                    disabled="@(selectedFile == null || string.IsNullOrWhiteSpace(projectName) || isLoading)">
                 Upload &amp; scan
             </button>
 
@@ -81,47 +78,45 @@
 @code {
     private const long MaxFileSize = 200 * 1024 * 1024;
 
-    private string   projectName      = string.Empty;
-    private byte[]?  fileBytes;
-    private string   selectedFileName = string.Empty;
-    private long     selectedFileSize;
-    private bool     isLoading;
-    private string   errorMessage     = string.Empty;
-    private Guid     uploadedProjectId;
+    private string          projectName      = string.Empty;
+    private byte[]?         selectedFile;
+    private string          selectedFileName = string.Empty;
+    private long            selectedFileSize;
+    private bool            isLoading;
+    private string          errorMessage     = string.Empty;
+    private Guid            uploadedProjectId;
 
-    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    private async Task HandleSelectFile()
     {
+        if (isLoading)
+            return;
+
         errorMessage      = string.Empty;
         uploadedProjectId = Guid.Empty;
 
-        var file = e.File;
+        var result = await FilePickerService.PickFileAsync();
 
-        if (file.ContentType != "application/zip" && !file.Name.EndsWith(".zip"))
+        if (result == null)
         {
-            errorMessage = "Only ZIP archives (.zip) are supported.";
-            fileBytes    = null;
+            // User cancelled
             return;
         }
 
-        if (file.Size > MaxFileSize)
+        if (result.FileSize > MaxFileSize)
         {
-            errorMessage = $"File is too large. Maximum is 100 MB (yours: {FormatFileSize(file.Size)}).";
-            fileBytes    = null;
+            errorMessage = $"File is too large. Maximum is 200 MB (yours: {FormatFileSize(result.FileSize)}).";
+            selectedFile = null;
             return;
         }
 
-        using var stream = file.OpenReadStream(MaxFileSize);
-        using var ms     = new MemoryStream();
-        await stream.CopyToAsync(ms);
-
-        fileBytes        = ms.ToArray();
-        selectedFileName = file.Name;
-        selectedFileSize = file.Size;
+        selectedFile     = result.FileBytes;
+        selectedFileName = result.FileName;
+        selectedFileSize = result.FileSize;
     }
 
     private async Task HandleUploadProject()
     {
-        if (fileBytes is null || string.IsNullOrWhiteSpace(projectName))
+        if (selectedFile is null || string.IsNullOrWhiteSpace(projectName))
             return;
 
         try
@@ -129,7 +124,7 @@
             isLoading    = true;
             errorMessage = string.Empty;
 
-            var result = await ApiClient.UploadProjectAsync(projectName.Trim(), fileBytes, selectedFileName);
+            var result = await ApiClient.UploadProjectAsync(projectName.Trim(), selectedFile, selectedFileName);
             Nav.NavigateTo($"projects/{result.ProjectId}/scans");
         }
         catch (Exception ex)
@@ -144,11 +139,11 @@
 
     private void ResetForm()
     {
-        projectName      = string.Empty;
-        fileBytes        = null;
-        selectedFileName = string.Empty;
-        selectedFileSize = 0;
-        errorMessage     = string.Empty;
+        projectName       = string.Empty;
+        selectedFile      = null;
+        selectedFileName  = string.Empty;
+        selectedFileSize  = 0;
+        errorMessage      = string.Empty;
         uploadedProjectId = Guid.Empty;
     }
 
