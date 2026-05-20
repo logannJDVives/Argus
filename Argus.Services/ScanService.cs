@@ -217,12 +217,24 @@ namespace Argus.Services
                     await semaphore.WaitAsync();
                     try
                     {
+                        // Fetch package metadata (license, description, etc.)
                         var meta = await _nuGetEnricher.GetMetadataAsync(component.Name, component.Version);
                         component.License       = meta.License;
                         component.Description   = meta.Description;
                         component.Homepage      = meta.Homepage;
                         component.PublisherUrl  = meta.Authors;
                         component.PublishedDate = meta.PublishedDate;
+
+                        // Fetch version info (latest version and deprecated status)
+                        var versionInfo = await _nuGetEnricher.GetLatestVersionInfoAsync(component.Name, component.Version);
+                        component.LatestVersion = versionInfo.LatestVersion;
+                        component.IsDeprecated  = versionInfo.IsDeprecated;
+
+                        if (versionInfo.IsDeprecated)
+                        {
+                            _logger.LogWarning("Package {PackageName}@{PackageVersion} is DEPRECATED: {DeprecationMessage}",
+                                component.Name, component.Version, versionInfo.DeprecationMessage);
+                        }
                     }
                     catch (Exception ex)
                     {

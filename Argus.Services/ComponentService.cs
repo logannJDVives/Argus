@@ -88,7 +88,9 @@ namespace Argus.Services
             Description             = sc.Description,
             Homepage                = sc.Homepage,
             PublisherUrl            = sc.PublisherUrl,
-            PublishedDate           = sc.PublishedDate
+            PublishedDate           = sc.PublishedDate,
+            LatestVersion           = sc.LatestVersion,
+            IsDeprecated            = sc.IsDeprecated
         };
     }
 }

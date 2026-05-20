@@ -192,7 +192,9 @@ else if (_scan is not null)
                     <thead>
                         <tr>
                             <th>Name</th>
-                            <th>Version</th>
+                            <th>Current Version</th>
+                            <th>Latest Version</th>
+                            <th style="text-align:center">Deprecated</th>
                             <th>License</th>
                             <th style="text-align:center">Type</th>
                             <th style="text-align:center">CVEs</th>
@@ -214,6 +216,30 @@ else if (_scan is not null)
                                     }
                                 </td>
                                 <td class="small text-muted">@c.Version</td>
+                                <td class="small">
+                                    @if (string.IsNullOrEmpty(c.LatestVersion))
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                    else if (c.Version != c.LatestVersion)
+                                    {
+                                        <span class="badge badge-warning">@c.LatestVersion</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-success">Up to date</span>
+                                    }
+                                </td>
+                                <td style="text-align:center">
+                                    @if (c.IsDeprecated)
+                                    {
+                                        <span class="badge badge-danger">Yes</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-success">No</span>
+                                    }
+                                </td>
                                 <td class="small">
                                     @if (string.IsNullOrEmpty(c.License))
                                     {

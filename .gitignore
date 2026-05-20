@@ -7,8 +7,9 @@
 ## Argus-specific ignores
 ## ===============================================
 
-# Ignore scanned projects in the Projects folder
+# Ignore scanned/uploaded projects in the Projects folder
 Argus.Api/Projects/
+Projects/
 ScannedProjects/
 
 # User-specific files
