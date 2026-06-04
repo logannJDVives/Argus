@@ -40,5 +40,8 @@ namespace Argus.Entities
 
         // Vulnerability navigation
         public List<Vulnerability> Vulnerabilities { get; set; } = new();
+
+        public string LatestVersion { get; set; }           // Newest version for this library
+        public bool IsDeprecated { get; set; }
     }
 }

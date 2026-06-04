@@ -3,11 +3,14 @@ using System.IO;
 using System.Threading.Tasks;
 using Argus.Interfaces;
 using Argus.Interfaces.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Argus.Services
 {
     public class ProjectFileScannerService : IProjectFileScannerService
     {
+        private readonly ILogger<ProjectFileScannerService> _logger;
+
         private static readonly HashSet<string> ExcludedDirectories = new(System.StringComparer.OrdinalIgnoreCase)
         {
             "bin", "obj", ".git", ".vs", "node_modules", "packages"
@@ -31,40 +34,76 @@ namespace Argus.Services
             [".dockerfile"] = FileCategory.Docker,
         };
 
+        public ProjectFileScannerService(ILogger<ProjectFileScannerService> logger)
+        {
+            _logger = logger ?? throw new System.ArgumentNullException(nameof(logger));
+        }
+
         public Task<IReadOnlyList<ScannedFile>> ScanProjectAsync(string projectPath)
         {
+            _logger.LogInformation("Starting file scan for project path: {ProjectPath}", projectPath);
+
+            if (!Directory.Exists(projectPath))
+            {
+                _logger.LogError("Project path does not exist: {ProjectPath}", projectPath);
+                throw new DirectoryNotFoundException($"Project path not found: {projectPath}");
+            }
+
             var results = new List<ScannedFile>();
             ScanDirectory(new DirectoryInfo(projectPath), projectPath, results);
+
+            _logger.LogInformation("File scan completed. Found {FileCount} scannable files in {ProjectPath}", 
+                results.Count, projectPath);
+
             return Task.FromResult<IReadOnlyList<ScannedFile>>(results);
         }
 
-        private static void ScanDirectory(DirectoryInfo directory, string projectRoot, List<ScannedFile> results)
+        private void ScanDirectory(DirectoryInfo directory, string projectRoot, List<ScannedFile> results)
         {
-            foreach (var file in directory.EnumerateFiles())
+            _logger.LogDebug("Scanning directory: {DirectoryPath}", directory.FullName);
+
+            try
             {
-                var category = ResolveCategory(file);
-                if (category is null)
-                    continue;
-
-                if (IsBinaryFile(file))
-                    continue;
-
-                results.Add(new ScannedFile
+                foreach (var file in directory.EnumerateFiles())
                 {
-                    FullPath     = file.FullName,
-                    RelativePath = Path.GetRelativePath(projectRoot, file.FullName),
-                    Extension    = file.Extension,
-                    SizeInBytes  = file.Length,
-                    Category     = category.Value
-                });
+                    var category = ResolveCategory(file);
+                    if (category is null)
+                        continue;
+
+                    if (IsBinaryFile(file))
+                    {
+                        _logger.LogDebug("Skipping binary file: {FilePath}", file.FullName);
+                        continue;
+                    }
+
+                    results.Add(new ScannedFile
+                    {
+                        FullPath     = file.FullName,
+                        RelativePath = Path.GetRelativePath(projectRoot, file.FullName),
+                        Extension    = file.Extension,
+                        SizeInBytes  = file.Length,
+                        Category     = category.Value
+                    });
+                }
+
+                foreach (var subdirectory in directory.EnumerateDirectories())
+                {
+                    if (ExcludedDirectories.Contains(subdirectory.Name))
+                    {
+                        _logger.LogDebug("Skipping excluded directory: {DirectoryName}", subdirectory.Name);
+                        continue;
+                    }
+
+                    ScanDirectory(subdirectory, projectRoot, results);
+                }
             }
-
-            foreach (var subdirectory in directory.EnumerateDirectories())
+            catch (UnauthorizedAccessException ex)
             {
-                if (ExcludedDirectories.Contains(subdirectory.Name))
-                    continue;
-
-                ScanDirectory(subdirectory, projectRoot, results);
+                _logger.LogWarning(ex, "Access denied to directory: {DirectoryPath}", directory.FullName);
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "I/O error scanning directory: {DirectoryPath}", directory.FullName);
             }
         }
 
@@ -88,7 +127,7 @@ namespace Argus.Services
         /// Returns true when the first 8 KB of the file contains a null byte,
         /// which is a reliable heuristic for binary content.
         /// </summary>
-        private static bool IsBinaryFile(FileInfo file)
+        private bool IsBinaryFile(FileInfo file)
         {
             const int sampleSize = 8 * 1024; // 8 KB
 
@@ -106,9 +145,14 @@ namespace Argus.Services
 
                 return false;
             }
-            catch
+            catch (UnauthorizedAccessException ex)
             {
-                // If we can't read the file, treat it as binary to skip safely.
+                _logger.LogWarning(ex, "Access denied reading file for binary check: {FilePath}", file.FullName);
+                return true;
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "I/O error reading file for binary check: {FilePath}", file.FullName);
                 return true;
             }
         }

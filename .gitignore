@@ -3,6 +3,15 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+## ===============================================
+## Argus-specific ignores
+## ===============================================
+
+# Ignore scanned/uploaded projects in the Projects folder
+Argus.Api/Projects/
+Projects/
+ScannedProjects/
+
 # User-specific files
 *.rsuser
 *.suo

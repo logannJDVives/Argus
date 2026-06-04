@@ -102,9 +102,10 @@ namespace Argus.Data
             modelBuilder.Entity<DetectedSecret>()
                 .HasIndex(ds => ds.ScanRunId);
 
+            // Removed unique constraint on (ScanRunId, FilePath, LineNumber)
+            // to allow the same secret to be tracked at multiple locations
             modelBuilder.Entity<DetectedSecret>()
-                .HasIndex(ds => new { ds.ScanRunId, ds.FilePath, ds.LineNumber })
-                .IsUnique();
+                .HasIndex(ds => new { ds.ScanRunId, ds.FilePath, ds.LineNumber });
 
             modelBuilder.Entity<DetectedSecret>()
                 .HasIndex(ds => ds.Severity);
@@ -166,8 +167,11 @@ namespace Argus.Data
                 .HasIndex(v => v.SoftwareComponentId);
 
             modelBuilder.Entity<Vulnerability>()
-                .HasIndex(v => v.CveId)
+                .HasIndex(v => new { v.SoftwareComponentId, v.CveId })
                 .IsUnique();
+
+            modelBuilder.Entity<Vulnerability>()
+                .HasIndex(v => v.CveId);
 
             modelBuilder.Entity<Vulnerability>()
                 .HasIndex(v => v.Severity);

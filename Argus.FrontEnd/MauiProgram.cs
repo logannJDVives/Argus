@@ -30,6 +30,7 @@ namespace Argus.FrontEnd
             .AddHttpMessageHandler<AuthorizationMessageHandler>();
 
             builder.Services.AddSingleton<AuthStateService>();
+            builder.Services.AddSingleton<IFilePickerService, FilePickerService>();
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();

@@ -16,5 +16,7 @@ namespace Argus.Dto.Components
         public string    Homepage                { get; set; }
         public string    PublisherUrl            { get; set; }
         public DateTime? PublishedDate           { get; set; }
+        public string    LatestVersion           { get; set; }
+        public bool      IsDeprecated            { get; set; }
     }
 }

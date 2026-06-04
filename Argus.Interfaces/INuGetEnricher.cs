@@ -10,5 +10,10 @@ namespace Argus.Interfaces
             string           packageId,
             string           version,
             CancellationToken ct = default);
+
+        Task<NuGetVersionInfo> GetLatestVersionInfoAsync(
+            string            packageId,
+            string            currentVersion,
+            CancellationToken ct = default);
     }
 }
